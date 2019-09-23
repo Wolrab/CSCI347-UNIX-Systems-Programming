@@ -28,7 +28,18 @@ and multi-threaded programming.
 
 # Meeting Times
 
-|CRN | Lecture |
-----------------
-|42481 | ES 027 MTWF 2:00-2:50
+|CRN | Lecture  |
+|----|----------|
+|42481 | ES 027 MTWF 2:00-2:50 |
 
+# Communication
+
+I am committed to establishing and maintaining a classroom climate that is
+inclusive and respectful for all students. Learning includes being able to voice
+a variety of perspectives, and classroom discussion is encouraged. While
+expressed ideas may vary or be opposed to one another, it is important for all
+of us to listen and engage respectfully with each other.
+
+We will use Canvas to post some assignments and grades, but please **do not** use
+Canvas conversations. I will not check Canvas for communication. Email is much
+faster and is preferred.
