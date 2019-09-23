@@ -74,7 +74,7 @@ On successful completion of the course, students will demonstrate:
 
 |   |   |   |
 |---|---|---|
-|Week 1| Process Life Cycle | Ch 8.1-8.10 |
+|Week 1| UNIX File System| Ch 4 |
 |Week 2&3 | UNIX Env | Ch 2, 3|
 |Week 4&5 | System I/O| CH 4, 5, 6|
 |Week 6&7 | Processes | CH 7, 8, 9, 10|
