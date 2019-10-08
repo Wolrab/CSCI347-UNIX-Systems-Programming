@@ -10,7 +10,7 @@ Instructor:    Aran Clauson
 
 Office:        CF 411
 
-Office Hours:  TBD
+Office Hours:  10T, 9RF
 
 Email:         Aran.Clauson@wwu.edu
 
