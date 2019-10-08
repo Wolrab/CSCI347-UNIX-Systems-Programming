@@ -41,18 +41,60 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl a
+.Op Fl al
 .Sh DESCRIPTION
 Lists the contents of the current directory in lexicographic order, one entry
 per line.  Do not try to create a tabular list yet.
 .Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+Include directory entries whose names begin with a
+dot
+.It Fl l
+(The lowercase letter
+.Dq ell ) .
+List in long format.
+(See below.)
+.El
+.Ss The Long Format
+If the
+.Fl l
+option is given, the following information
+is displayed for each file:
+.Bl -item -offset indent -compact
+.It
+file mode
+.It
+number of links
+.It
+owner name
+.It
+group name
+.It
+file flags (if
+.Fl o
+given)
+.It
+number of bytes in the file
+.It
+abbreviated month file was last modified
+.It
+day-of-month file was last modified
+.It
+hour and minute file was last modified
+.It
+pathname
+.El
+.Pp
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
+.Xr stat 2,
 .Xr dirent 3 ,
+.Xr getopt 3 ,
 .Xr opendir 3 ,
 .Xr strcoll 3 ,
-.Xr getopt 3 ,
 .Sh HISTORY
 An
 .Nm

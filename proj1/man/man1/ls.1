@@ -45,14 +45,20 @@
 .Sh DESCRIPTION
 Lists the contents of the current directory in lexicographic order, one entry
 per line.  Do not try to create a tabular list yet.
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+Include directory entries whose names begin with a
+dot
+.El
 .Pp
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
 .Xr dirent 3 ,
+.Xr getopt 3 ,
 .Xr opendir 3 ,
 .Xr strcoll 3 ,
-.Xr getopt 3 ,
 .Sh HISTORY
 An
 .Nm
