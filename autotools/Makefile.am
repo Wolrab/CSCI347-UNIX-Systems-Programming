@@ -1,9 +1,10 @@
 bin_PROGRAMS=ls
 ls_SOURCE=ls.c
 
-EXTRA_DIST=tests
+test_scripts=tests/ls_order  \
+			 tests/ls_exists
 
-TESTS=tests/ls_order  \
-      tests/ls_exists
+EXTRA_DIST=${test_scripts}
+TESTS=${test_scripts}
 
 XFAIL_TESTS=tests/ls_order
