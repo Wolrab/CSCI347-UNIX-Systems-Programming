@@ -1,0 +1,19 @@
+
+The error we saw in class was from building a distribution from a non-clean
+build environment.   I ran `make check` before `make checkdist`.  When you build
+the distribution, execute `make clean` first.
+
+Remember that you need to add the following to the configure script to
+boot-strap ls on your test VM.
+
+if [ -f /bin/.ls ]
+then
+  alias ls=.ls
+fi
+
+Here is a quick tutorial on vi.  I didn't know about the ZZ command.  You
+probably only need section 2 and parts of 3.
+
+http://heather.cs.ucdavis.edu/~matloff/UnixAndC/Editors/ViIntro.html
+
+
