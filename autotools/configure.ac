@@ -2,7 +2,7 @@ AC_INIT([clausoa],[1.0],[clausoa@wwu.edu])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
 
-# Progreams
+# Programs
 #
 AC_PROG_CC
 
