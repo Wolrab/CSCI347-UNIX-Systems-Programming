@@ -16,6 +16,9 @@
 #define OPENDIR_ERROR_F "opendir: can't open '%s'"
 #define OPENDIR_ERROR_NONF_LEN strlen(OPENDIR_ERROR_F)-2
 
+// Actual ls functionality
+int _ls(char *path, char options);
+
 // Returns a maskable char with all the enabled options
 char get_options(int argc, char **argv);
 

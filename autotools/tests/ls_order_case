@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+#
+
+TEMP=$(mktemp -d)
+WORK=$(pwd)
+
+cd ${TEMP}
+
+# Checks to make sure ls considers cases in the lexigraphical way we desire
+touch a
+touch A
+touch b
+touch B
+
+${WORK}/ls > A
+
+# cat just acts as a modified standard input which stops at the EOF
+cat <<EOF | diff A -
+A
+a
+B
+b
+EOF
+
+# Return value from diff. 0 if no differences, 1 if anything else
+status=$?
+
+cd ${WORK}
+rm -rf ${TEMP}
+
+exit ${status}

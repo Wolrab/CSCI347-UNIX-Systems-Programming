@@ -1,35 +1,51 @@
 #include "ls.h"
 
-#define IS_OPT(x) (x[0]=='-')
+#define IS_OPT(s) (s[0]=='-')
+#define NOT_LAST_ARG(i, argv) (i > 0 && !IS_OPT(argv[i]))
 
-/* Parses options, finds the first valid path to a directory and prints all the entries
- *   of that directory.
- * TODO: Loop through more directories after the first
+/* Parses options, and in the spirit of the real ls parses all non-option
+ *   arguments as paths to sequentially evaluate.
  */
 int main(int argc, char **argv) {
-    DIR *d;
-    tree *list = bst_init();
     char options;
     unsigned int path_ind;
     char *path, *err_str;
-    int err;
-
-    if (list == NULL) {
-        perror("bst_init");
-        fprintf(stderr, "exiting...\n");
-        return -1;
-    }
+    int err, ret = 0;
 
     options = get_options(argc, argv);
 
     path_ind = argc-1;
     if (argc == 1 || IS_OPT(argv[path_ind]))
-        path = ".";
-    else
-        path = argv[path_ind];
+        ret = _ls(".", options);
+    else {
+        do {
+            err = _ls(argv[path_ind], options);
+            if (!ret && err) ret = err;
+            path_ind--;
+            if (NOT_LAST_ARG(path_ind, argv))
+                printf("\n");
+        } while (NOT_LAST_ARG(path_ind, argv));
+    }
 
+    return ret;
+}
+
+/* Prints the entries of a single path to stdout with a given set of options
+ */
+int _ls(char *path, char options) {
+    DIR *d;
+    tree *list;
+    int err;
+    char *err_str;
+
+    list = bst_init();
+    if (list == NULL) {
+        perror("bst_init");
+        return -1;
+    }
+    
     d = opendir(path);
-    while (d == NULL) {
+    if (d == NULL) {
         err = errno;
 
         err_str = malloc(sizeof(char) * (OPENDIR_ERROR_NONF_LEN + strlen(path) + 1));
@@ -38,30 +54,20 @@ int main(int argc, char **argv) {
         errno = err;
         perror(err_str);
         free(err_str);
-        
-        if (path_ind > 1 && !IS_OPT(argv[path_ind-1])) {
-            path_ind--;
-            path = argv[path_ind];
-            d = opendir(path);
-            continue;
-        }
 
-        fprintf(stderr, "exiting...\n");
         bst_delete_tree_ddata(list);
         return -1;
     }
     
     if (get_dir_listings(d, list, options) < 0) {
-        fprintf(stderr, "exiting...\n");
         closedir(d);
         bst_delete_tree_ddata(list);
         return -1;
     }
 
     bst_inorder_out(list, stdout);
-    bst_delete_tree_ddata(list);
     closedir(d);
-
+    bst_delete_tree_ddata(list);
     return 0;
 }
 

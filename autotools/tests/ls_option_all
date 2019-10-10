@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+#
+
+TEMP=$(mktemp -d)
+WORK=$(pwd)
+
+cd ${TEMP}
+
+touch .a
+touch a
+
+${WORK}/ls > a
+${WORK}/ls -a >> a
+
+cat <<EOF | diff a -
+a
+.
+..
+.a
+a
+EOF
+status=$?
+
+cd ${WORK}
+rm -rf ${TEMP}
+
+exit ${status}

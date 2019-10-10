@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+#
+
+TEMP1=$(mktemp -d)
+TEMP2=$(mktemp -d)
+WORK=$(pwd)
+
+touch ${TEMP1}/a
+touch ${TEMP2}/b
+
+${WORK}/ls ${TEMP1} ${TEMP2} > ${TEMP1}/a
+${WORK}/ls ${TEMP2} ${TEMP1} >> ${TEMP1}/a
+
+cat <<EOF | diff ${TEMP1}/a -
+b
+
+a
+a
+
+b
+EOF
+status=$?
+
+rm -rf ${TEMP1}
+rm -rf ${TEMP2}
+
+exit ${status}
