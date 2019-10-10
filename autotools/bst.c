@@ -17,8 +17,8 @@
 
 /* Determines order of strings s1 and s2 (kept as a seperate function for easy modification)
  */
-int string_order(char* s1, char* s2) {
-    return -strcasecmp(s1, s2);
+int string_order(char const *s1, char const *s2) {
+    return -strcoll(s1, s2);
 }
 
 /* Creates an empty tree
@@ -37,7 +37,7 @@ tree* bst_init() {
 /* Creates a new node
  * If malloc fails, bst_add_node catches this since users SHOULD NEVER call this function anyways
  */
-node* _bst_create_node(char *s, node *parent, char color) {
+node* _bst_create_node(char *s, node *parent, const char color) {
     errno = 0;
     node *n = malloc(sizeof(node));
     if (n == NULL) return NULL;
@@ -45,7 +45,7 @@ node* _bst_create_node(char *s, node *parent, char color) {
     n->left = NULL;
     n->right = NULL;
     n->color = color;
-    n->val = s;
+    n->data = s;
     return n;
 }
 
@@ -59,7 +59,7 @@ int bst_add_node(tree *t, char *s) {
     p = *t;
     while (p != NULL) {
         q = p;
-        ret = string_order(p->val, s);
+        ret = string_order(p->data, s);
         if (ret == 0)
             return 1;
         if (ret < 0)
@@ -186,16 +186,16 @@ void _bst_right_rotate(tree *t, node *n) {
 
 /* Performs an inorder out of tree t to file f
  */
-void bst_inorder_out(tree *t, FILE *f) {
+void bst_inorder_out(tree const *t, FILE *f) {
     _bst_inorder_out_r(*t, f);
 }
 
 /* Recursive implementation for bst_inorder_out
  */
-void _bst_inorder_out_r(node *n, FILE *f) {
+void _bst_inorder_out_r(node const *n, FILE *f) {
     if (n != NULL) {
         _bst_inorder_out_r(n->left, f);
-        if (fprintf(f, "%s\n", n->val) < 0) {
+        if (fprintf(f, "%s\n", n->data) < 0) {
             perror("fprintf");
             fprintf(stderr, "Output to file failed\n");
 
@@ -217,7 +217,7 @@ void _bst_delete_tree_ddata_r(node *n) {
     if (n != NULL) {
         _bst_delete_tree_ddata_r(n->left);
         _bst_delete_tree_ddata_r(n->right);
-        free(n->val);
+        free(n->data);
         free(n);
     }
 }

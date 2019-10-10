@@ -10,8 +10,13 @@
 
 #define OPT_a_MASK 0x1
 
-int get_flags(int, char**);
-int get_dir_listings(DIR*, tree*, int);
-int _add_entry(tree*, char*);
+#define OPENDIR_ERROR_F "opendir: can't open '%s'"
+#define OPENDIR_ERROR_NONF_LEN strlen(OPENDIR_ERROR_F)-2
+
+void path_error_out(char *path);
+int get_flags(int argc, char **argv);
+int get_dir_listings(DIR *d, tree *list, int flags);
+// Creates a dynamic copy of 
+int _add_entry(tree *list, char *name);
 
 #endif /* __LS_H */
