@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,28 +18,56 @@ struct node_s {
     tree left;
     tree right;
     char *data;
+    struct key_s *key;
     char color;
 };
 
-int string_order(const char *s1, const char *s2);
+struct key_s {
+    char *cmp_char;
+    char *cmp_case;
+};
 
-// Initializes a pointer to a tree. Necessary for almost all BST functions.
+// Given two keys created with make_key, returns the order of k1 relative to k2
+int key_order(struct key_s *k1, struct key_s *k2);
+
+// Given a string s, creates a key compatable with key_order
+struct key_s* make_key(const char *s);
+
+// Initializes a pointer to a tree. You must create your tree with this function
 tree* bst_init();
-node* _bst_create_node(char *s, node *parent, const char color);
+
+// Creates a new node with the given struct values, should only ever be used by bst_add_node
+node* _bst_create_node(char *s, struct key_s *s_key, node *parent, const char color);
+
 // Function for adding string s and a corresponding node to tree t. The memory of s must be
-//   handled by the user of this function!
+//   handled by the caller of this function!
 int bst_add_node(tree *t, char *s);
+
+// Maintains the red/black property in tree t. Assumptions about the state of the tree are 
+//   baked into the function, should only ever be called by bst_add_node
 void _bst_fix_order(tree *t, node *n);
+
+// Makes a left rotation of the node pointed to by n, with the tree reference to the root 
+//   included if the node in question is the root. Should only ever be called by _bst_fix_order
 void _bst_left_rotate(tree *t, node *n);
+
+// Makes a right rotation of the node pointed to by n, with the tree reference to the root 
+//   included if the node in question is the root. Should only ever be called by _bst_fix_order
 void _bst_right_rotate(tree *t, node *n);
 
+// Helper function for a recursive inorder out. No change can happen to the tree.
 void bst_inorder_out(tree const *t, FILE *f);
+// Recursive inorder out. Never call this.
 void _bst_inorder_out_r(node const *n, FILE *f);
 
-// Delete a BST with dynamically allocated data
+// Helper function for recursively deleting a tree with dynamically allocated data.
 void bst_delete_tree_ddata(tree *t);
+// Recursive tree deletion. Never call this.
 void _bst_delete_tree_ddata_r(node *n);
+
+// Helper function for recursively deleting a tree with statically allocated data.
 void bst_delete_tree_sdata(tree *t);
+// Recursive tree deletion. Never call this.
 void _bst_delete_tree_sdata_r(node *n);
 
 #endif /*__BST_H*/

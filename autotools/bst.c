@@ -15,14 +15,49 @@
 
 #include "bst.h"
 
-/* Determines order of strings s1 and s2 (kept as a seperate function for easy modification)
+/* Determines lexigraphic order of keys k1 and k2
+ * Return is less than 0 if k1 is before k2, 0 if k1 == k2, and is greater than
+ *   0 if k1 > k2 (determined by characterwise comparisons of the two strings)
  */
-int string_order(char const *s1, char const *s2) {
-    return -strcoll(s1, s2);
+int key_order(struct key_s *k1, struct key_s *k2) {
+    int ret = strcoll(k1->cmp_char, k2->cmp_char);
+    if (ret == 0)
+        ret = strcoll(k1->cmp_case, k2->cmp_case);
+    return ret;
 }
 
-/* Creates an empty tree
- * On error returns NULL
+/* TODO: Later
+ */
+struct key_s* make_key(const char *s) {
+    int i, len = strlen(s) + 1;
+    struct key_s* s_key;
+
+    errno = 0;
+    s_key = malloc(sizeof(struct key_s));
+    if (s_key == NULL) {
+        return NULL;
+    }
+    s_key->cmp_char = malloc(sizeof(char) * len);
+    if (s_key->cmp_char == NULL) {
+        free(s_key);
+        return NULL;
+    }
+    s_key->cmp_case = malloc(sizeof(char) * len);
+    if (s_key->cmp_case == NULL) {
+        free(s_key->cmp_char);
+        free(s_key);
+        return NULL;
+    }
+    
+    for (i = 0; i < len; i++) {
+        s_key->cmp_char[i] = tolower(s[i]);
+        s_key->cmp_case[i] = s[i];
+    }
+    return s_key;
+}
+
+/* Creates and returns an empty tree
+ * Returns NULL if allocation of the pointer to tree fails
  */
 tree* bst_init() {
     errno = 0;
@@ -34,10 +69,10 @@ tree* bst_init() {
     return t;
 }
 
-/* Creates a new node
- * If malloc fails, bst_add_node catches this since users SHOULD NEVER call this function anyways
+/* Creates and returns new node
+ * Returns NULL if allocation of the new node fails
  */
-node* _bst_create_node(char *s, node *parent, const char color) {
+node* _bst_create_node(char *s, struct key_s *s_key, node *parent, const char color) {
     errno = 0;
     node *n = malloc(sizeof(node));
     if (n == NULL) return NULL;
@@ -46,43 +81,65 @@ node* _bst_create_node(char *s, node *parent, const char color) {
     n->right = NULL;
     n->color = color;
     n->data = s;
+    n->key = s_key;
     return n;
 }
 
 /* Adds a new node with data value s into tree t
- * Returns: 0 on success, 1 if node already exists, and -1 if allocation of new nodes failed
+ * Function behavior is undefined if the tree t does not conform to red/black properties
+ *   i.e. it was not passed in the correct order through functions that preserve the invariants or 
+ *   was somehow malformed.
+ * Returns: 0 on success, 1 if node already exists, and -1 if some memory allocation failed
  */
 int bst_add_node(tree *t, char *s) {
     int ret;
     node *p, *q = NULL;
+    struct key_s *s_key = make_key(s);
+    if (s_key == NULL)
+        return -1;
+
     assert(t != NULL);
     p = *t;
     while (p != NULL) {
         q = p;
-        ret = string_order(p->data, s);
-        if (ret == 0)
+        ret = key_order(s_key, p->key);
+        if (ret == 0) {
+            free(s_key);
             return 1;
+        }
         if (ret < 0)
             p = p->left;
         else /* ret > 0 */
             p = p->right;
     }
     if (q == NULL) {
-        *t = _bst_create_node(s, NULL, BLACK);
-        if (t == NULL)
+        *t = _bst_create_node(s, s_key, NULL, BLACK);
+        if (*t == NULL) {
+            free(s_key->cmp_char);
+            free(s_key->cmp_case);
+            free(s_key);
             return -1;
+        }
         return 0;
     }
     if (ret < 0) {
-        q->left = _bst_create_node(s, q, RED);
-        if (q->left == NULL)
+        q->left = _bst_create_node(s, s_key, q, RED);
+        if (q->left == NULL) {
+            free(s_key->cmp_char);
+            free(s_key->cmp_case);
+            free(s_key);
             return -1;
+        }
         _bst_fix_order(t, q->left);
     }
     else /* ret > 0 */ {
-        q->right = _bst_create_node(s, q, RED);
-        if (q->right == NULL)
+        q->right = _bst_create_node(s, s_key, q, RED);
+        if (q->right == NULL) {
+            free(s_key->cmp_char);
+            free(s_key->cmp_case);
+            free(s_key);
             return -1;
+        }
         _bst_fix_order(t, q->right);
     }
     return 0;
@@ -91,6 +148,7 @@ int bst_add_node(tree *t, char *s) {
 /* Finds any violations of the red/black property in tree t immediately after 
  *   adding a node.
  * For the purposes of the algorithm, NULL is a node with the color black.
+ * Behavior is undefined if the tree given to bst_add_node did not fulfill red/black property.
  */
 void _bst_fix_order(tree *t, node *n) {
     node *q;
@@ -218,6 +276,9 @@ void _bst_delete_tree_ddata_r(node *n) {
         _bst_delete_tree_ddata_r(n->left);
         _bst_delete_tree_ddata_r(n->right);
         free(n->data);
+        free(n->key->cmp_char);
+        free(n->key->cmp_case);
+        free(n->key);
         free(n);
     }
 }
@@ -227,6 +288,7 @@ void _bst_delete_tree_ddata_r(node *n) {
 void bst_delete_tree_sdata(tree *t) {
     _bst_delete_tree_sdata_r(*t);
     free(t);
+    t = NULL;
 }
 
 /* Recursive implementation for bst_delete_tree_sdata
@@ -235,6 +297,9 @@ void _bst_delete_tree_sdata_r(node *n) {
     if (n != NULL) {
         _bst_delete_tree_sdata_r(n->left);
         _bst_delete_tree_sdata_r(n->right);
+        free(n->key->cmp_char);
+        free(n->key->cmp_case);
+        free(n->key);
         free(n);
     }
 }
