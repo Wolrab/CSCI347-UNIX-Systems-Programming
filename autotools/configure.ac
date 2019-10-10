@@ -1,4 +1,4 @@
-AC_INIT([clausoa],[1.0],[clausoa@wwu.edu])
+AC_INIT([barlowc2],[1.0],[barlowc2@wwu.edu])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
 
