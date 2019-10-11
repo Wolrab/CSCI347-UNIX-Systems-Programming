@@ -7,12 +7,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Constants for red/black invariant
 #define BLACK 0
 #define RED 1
 
 typedef struct node_s node;
 typedef node* tree;
 
+// Node structure for BST
 struct node_s {
     tree parent;
     tree left;
@@ -22,9 +24,15 @@ struct node_s {
     char color;
 };
 
+// A structure used as the sorting key to make case-insensitive comparison with strcoll work
+//   (I checked the locale many times and googling yielded no results for doing case-insensitive comparisons 
+//    within the bounds of strcoll itself, so I came up with this solution that preserves the nice locale-
+//    dependent features of strcoll while still recognizing the differences between upper and 
+//    lowercase letters when necessary (i.e. all letters are the same except some have inverted cases
+//    relative to one another))
 struct key_s {
-    char *cmp_char;
-    char *cmp_case;
+    char *cmp_char; // The string set to all lowercase, all non-character comparisons relative to locale are held
+    char *cmp_case; // The string itself, for the case that all characters match and casewise comparison is required
 };
 
 // Given two keys created with make_key, returns the order of k1 relative to k2

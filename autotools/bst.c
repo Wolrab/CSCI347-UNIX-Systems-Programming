@@ -8,10 +8,19 @@
    This implementation was all in a misguided effort to change the necessary string comparisons from 
      an average n/2 to approximately log(n) for n strings, but about halfway through I realized a nice heapsort 
      or quicksort algorithm with logarithmically increasing array sizes during the storage phase 
-     would have been a much better alternative. And so the sunk-cost fallacy claims another student's soul.
-   
+     would have been a much better alternative. And so the sunk-cost fallacy claims another student's soul.**
+
    Reference for the algorithm was sourced from pages 308-322 of the infamous "Introduction to Algorithms"
-     C-implementation done by Connor Barlow, esq. */
+     C-implementation done by Connor Barlow, esq.
+     
+   Another note to cover my a**: I would have liked to add comments within the functions to show my understanding
+     of the purpose behind of each arcane if, else, and while, but I shall follow your commandment from class
+     and break each function up into as many (reasonable) atomic parts as possible. And I contend here that the 
+     reasonable atoms of BST sort itself are the well defined BST operations themselves, and while in certain cases
+     I could have made two functions _bst_fix_order_left_case and _bst_fix_order_right_case, I think that's kind of 
+     stupid. Let me know if you disagree. Also let me know if you have a better solution to this problem as this 
+     will be far from the last overly-complicated-but-asymptotically-efficient algorithm I will be implementing 
+     for this class. Because this was really fun. */
 
 #include "bst.h"
 
@@ -26,7 +35,11 @@ int key_order(struct key_s *k1, struct key_s *k2) {
     return ret;
 }
 
-/* TODO: Later
+/* Creates a key compatable with the key_order function. This function
+ *   includes a potentially unecessary copying of s, but the order
+ *   of execution in the rest of BST and all of the failure cases
+ *   to account for have made me very ok with this small extra inefficiency.
+ * Returns NULL if allocation of some part of the key fails.
  */
 struct key_s* make_key(const char *s) {
     int i, len = strlen(s) + 1;
@@ -104,6 +117,8 @@ int bst_add_node(tree *t, char *s) {
         q = p;
         ret = key_order(s_key, p->key);
         if (ret == 0) {
+            free(s_key->cmp_char);
+            free(s_key->cmp_case);
             free(s_key);
             return 1;
         }

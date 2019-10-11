@@ -14,6 +14,7 @@
 #define OPT_a_MASK 0x01
 
 // Macros to add more information to perror and allocate the correct number of bytes
+//   for the error string
 #define OPENDIR_ERROR_F "opendir: cannot access '%s'"
 #define OPENDIR_ERROR_NONF_LEN strlen(OPENDIR_ERROR_F)-2
 
@@ -27,8 +28,8 @@ char get_options(int argc, char **argv);
 int get_dir_listings(DIR *d, tree *list, char options);
 
 // All data added to list must be added through _add_entry as there are no
-//   guarantees about the long term storage of variables pointed to by dirent
-//   and _add_entry manages copying of those values 
+//   guarantees about the long term storage of variables pointed to by dirent.
+//   _add_entry manages the copying of those values.
 int _add_entry(tree *list, char *name);
 
 #endif /* __LS_H */
