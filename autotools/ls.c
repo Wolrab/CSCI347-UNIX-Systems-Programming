@@ -1,30 +1,40 @@
 #include "ls.h"
 
 #define IS_OPT(s) (s[0]=='-')
-#define NOT_LAST_ARG(i, argv) (i > 0 && !IS_OPT(argv[i]))
 
 /* Parses options, and in the spirit of the real ls parses all non-option
- *   arguments as paths to sequentially evaluate.
+ *   arguments as paths to sequentially evaluate. The sequence is evaluated 
+ *   FIFO with reference to the relative position of each path.
  */
 int main(int argc, char **argv) {
     char options;
     unsigned int path_ind;
     char *path, *err_str;
     int err, ret = 0;
+    bool cont;
 
     options = get_options(argc, argv);
 
-    path_ind = argc-1;
-    if (argc == 1 || IS_OPT(argv[path_ind]))
+    if (argc == 1 || IS_OPT(argv[argc-1]))
         ret = _ls(".", options);
     else {
-        do {
-            err = _ls(argv[path_ind], options);
-            if (!ret && err) ret = err;
-            path_ind--;
-            if (NOT_LAST_ARG(path_ind, argv))
-                printf("\n");
-        } while (NOT_LAST_ARG(path_ind, argv));
+        for (path_ind = 1; IS_OPT(argv[path_ind]); path_ind++) continue;
+        if (path_ind == argc-1) {
+            ret = _ls(argv[path_ind], options);
+        }
+        else {
+            do {
+                printf("%s:\n", argv[path_ind]);
+
+                err = _ls(argv[path_ind], options);
+                if (!ret && err) ret = err;
+                
+                path_ind++;
+                cont = path_ind < argc;
+                
+                if (cont) printf("\n");
+            } while (cont);
+        }
     }
 
     return ret;

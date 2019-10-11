@@ -11,8 +11,20 @@ touch a
 
 ${WORK}/ls > a
 ${WORK}/ls -a >> a
+cd ${WORK}
+${WORK}/ls ${TEMP} -a >> ${TEMP}/a
+${WORK}/ls -a ${TEMP} >> ${TEMP}/a
+cd ${TEMP}
 
 cat <<EOF | diff a -
+a
+.
+..
+.a
+a
+.
+..
+.a
 a
 .
 ..

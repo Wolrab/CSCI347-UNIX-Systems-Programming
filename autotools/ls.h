@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <stdbool.h>
 #include "bst.h"
 
 // All the options recognized by the program
@@ -13,7 +14,7 @@
 #define OPT_a_MASK 0x01
 
 // Macros to add more information to perror and allocate the correct number of bytes
-#define OPENDIR_ERROR_F "opendir: can't open '%s'"
+#define OPENDIR_ERROR_F "opendir: cannot access '%s'"
 #define OPENDIR_ERROR_NONF_LEN strlen(OPENDIR_ERROR_F)-2
 
 // Actual ls functionality

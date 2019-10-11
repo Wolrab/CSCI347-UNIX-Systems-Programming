@@ -10,19 +10,35 @@ touch ${TEMP2}/b
 
 ${WORK}/ls ${TEMP1} ${TEMP2} > ${TEMP1}/a
 ${WORK}/ls ${TEMP2} ${TEMP1} >> ${TEMP1}/a
-${WORK}/ls -a ${TEMP2} ${TEMP1} >> ${TEMP1}/a
+${WORK}/ls -a ${TEMP1} ${TEMP2} >> ${TEMP1}/a
+${WORK}/ls ${TEMP1} -a ${TEMP2} >> ${TEMP1}/a
 
 cat <<EOF | diff ${TEMP1}/a -
-b
-
-a
+${TEMP1}:
 a
 
+${TEMP2}:
 b
+${TEMP2}:
+b
+
+${TEMP1}:
+a
+${TEMP1}:
 .
 ..
 a
 
+${TEMP2}:
+.
+..
+b
+${TEMP1}:
+.
+..
+a
+
+${TEMP2}:
 .
 ..
 b
