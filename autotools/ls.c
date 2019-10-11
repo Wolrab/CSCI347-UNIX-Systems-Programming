@@ -38,7 +38,6 @@ int _ls(char *path, char options) {
     int err;
     char *err_str;
 
-    list = bst_init();
     if (list == NULL) {
         perror("bst_init");
         return -1;
@@ -54,11 +53,10 @@ int _ls(char *path, char options) {
         errno = err;
         perror(err_str);
         free(err_str);
-
-        bst_delete_tree_ddata(list);
         return -1;
     }
-    
+
+    list = bst_init();    
     if (get_dir_listings(d, list, options) < 0) {
         closedir(d);
         bst_delete_tree_ddata(list);

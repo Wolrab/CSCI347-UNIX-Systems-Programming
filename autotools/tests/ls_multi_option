@@ -10,6 +10,7 @@ touch ${TEMP2}/b
 
 ${WORK}/ls ${TEMP1} ${TEMP2} > ${TEMP1}/a
 ${WORK}/ls ${TEMP2} ${TEMP1} >> ${TEMP1}/a
+${WORK}/ls -a ${TEMP2} ${TEMP1} >> ${TEMP1}/a
 
 cat <<EOF | diff ${TEMP1}/a -
 b
@@ -17,6 +18,13 @@ b
 a
 a
 
+b
+.
+..
+a
+
+.
+..
 b
 EOF
 status=$?
