@@ -19,26 +19,25 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    if (argc == 1 || IS_OPT(argv[argc-1]))
+    for (path_ind = 1; path_ind<argc && IS_OPT(argv[path_ind]); path_ind++) continue;
+    if (path_ind == argc) {
         ret = _ls(".", options);
+    }
+    else if (path_ind == argc-1) {
+        ret = _ls(argv[path_ind], options);
+    }
     else {
-        for (path_ind = 1; IS_OPT(argv[path_ind]); path_ind++) continue;
-        if (path_ind == argc-1) {
-            ret = _ls(argv[path_ind], options);
-        }
-        else {
-            do {
-                printf("%s:\n", argv[path_ind]);
+        do {
+            printf("%s:\n", argv[path_ind]);
 
-                err = _ls(argv[path_ind], options);
-                if (!ret && err) ret = err;
-                
-                path_ind++;
-                cont = path_ind < argc;
-                
-                if (cont) printf("\n");
-            } while (cont);
-        }
+            err = _ls(argv[path_ind], options);
+            if (!ret && err) ret = err;
+            
+            path_ind++;
+            cont = path_ind < argc;
+            
+            if (cont) printf("\n");
+        } while (cont);
     }
 
     return ret;
