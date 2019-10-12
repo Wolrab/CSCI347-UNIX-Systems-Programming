@@ -11,6 +11,7 @@
 #define OPT_STRING "a"
 
 // The bitmask for each of the options
+// LIMITED TO 7 OPTIONS WITH CHAR as -1 is reserved for an invalid option error
 #define OPT_a_MASK 0x01
 
 // Macros to add more information to perror and allocate the correct number of bytes

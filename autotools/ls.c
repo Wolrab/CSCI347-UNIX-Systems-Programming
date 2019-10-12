@@ -14,6 +14,10 @@ int main(int argc, char **argv) {
     bool cont;
 
     options = get_options(argc, argv);
+    if (options == -1) {
+        printf("Usage: ls [-a] [file...]\n");
+        return -1;
+    }
 
     if (argc == 1 || IS_OPT(argv[argc-1]))
         ret = _ls(".", options);
@@ -91,6 +95,8 @@ char get_options(int argc, char **argv) {
         case 'a':
             options |= OPT_a_MASK;
             break;
+        case '?':
+            return -1;
         }
         opt = getopt(argc, argv, OPT_STRING);
     }
