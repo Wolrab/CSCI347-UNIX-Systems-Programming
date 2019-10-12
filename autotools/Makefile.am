@@ -5,4 +5,7 @@ ls_DEPENDENCIES=ls.h bst.h
 EXTRA_DIST=tests
 
 TESTS=tests/ls_order  \
-      tests/ls_exists
+      tests/ls_exists \
+	  tests/ls_multi_path \
+	  tests/ls_option_all \
+	  tests/ls_order_case
