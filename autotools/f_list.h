@@ -6,6 +6,7 @@
 #include <time.h>
 #include <ctype.h>
 #include <errno.h>
+#include <assert.h>
 
 // Logarithmicaly increasing and kind of arbitrary array sizes to itterate through
 static const unsigned _f_list_size[] = {0x0000000F, 0x000000FF, 0x000003FF, 0x00000FFF, \

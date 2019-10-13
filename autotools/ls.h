@@ -5,14 +5,16 @@
 #include <errno.h>
 #include <string.h>
 #include <stdbool.h>
+#include <sys/stat.h>
 #include "f_list.h"
 
 // All the options recognized by the program
-#define OPT_STRING "a"
+#define OPT_STRING "al"
 
 // The bitmask for each of the options
 // LIMITED TO 7 OPTIONS WITH CHAR as -1 is reserved for an invalid option error
 #define OPT_a_MASK 0x01
+#define OPT_l_MASK 0x02
 
 // Macros to add more information to perror and allocate the correct number of bytes
 //   for the error string
@@ -25,12 +27,16 @@ int _ls(char *path, char options);
 // Returns a maskable char with all the enabled options
 char get_options(int argc, char **argv);
 
-// Uses _add_entry to fill the tree list with all the entries of directory d
-int get_dir_listings(DIR *d, f_list *fl, char options);
+// Uses _add_entry to fill the f_list with the name of all the entries in d
+int get_ent_names(DIR *d, f_list *dir_entries, const char options);
+
+// Uses _add_entry to fill the f_list with all the names and stats of entries in d
+int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char options);
 
 // All data added to list must be added through _add_entry as there are no
-//   guarantees about the long term storage of variables pointed to by dirent.
-//   _add_entry manages the copying of those values.
-int _add_entry(f_list *fl, char *name);
+//   guarantees about the long term storage of d_name held in the dirent
+//   structure. This manages the copying of that memory. The stat structure 
+//   is fine because it's in our own buffer.
+int _add_entry(f_list *dir_entries, char *ent_name, struct stat *ent_stat);
 
 #endif /* __LS_H */

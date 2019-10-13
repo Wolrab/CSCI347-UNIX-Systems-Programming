@@ -1,5 +1,9 @@
 #include "ls.h"
 
+// TODO: Scrap all error checking and remake it from scratch
+// Return error is an enum value to an array?
+// Also, using argv[0] like big boi ls
+
 // Quick macro to help in navigating argv
 #define IS_OPT(s) (s[0]=='-')
 
@@ -49,8 +53,8 @@ int main(int argc, char **argv) {
  */
 int _ls(char *path, char options) {
     DIR *d;
-    f_list *ent_names;
-    int err;
+    f_list *dir_entries;
+    int ret, err;
     char *err_str;
 
     d = opendir(path);
@@ -66,22 +70,42 @@ int _ls(char *path, char options) {
         return 1;
     }
 
-    ent_names = f_list_init();    
-    if (ent_names == NULL) {
+    dir_entries = f_list_init();    
+    if (dir_entries == NULL) {
         perror("f_list_init");
         return 1;
     }
 
-    if (get_dir_listings(d, ent_names, options) < 0) {
-        closedir(d);
-        f_list_delete_ddata(ent_names);
-        return 1;
+    if (options & OPT_l_MASK) {
+        ret = get_ent_stats(d, dir_entries, path, options);
+        if (ret == 2) return 1;
     }
+    else
+        ret = get_ent_names(d, dir_entries, options);
 
-    f_list_sort(ent_names);
-    f_list_data_out(ent_names, stdout);
+    if (ret < 0) {
+        if (errno == 0)
+            fprintf(stderr, "Attempting to print directories saved\n\n");
+        else {
+            perror("This is fucked");
+            f_list_delete_ddata(dir_entries);
+            return 1;
+        }
+    }
+    else if (ret == 1) {
+        perror("readdir");
+        if (dir_entries == NULL) {
+            fprintf(stderr, "Catastrophic, exiting.\n");
+            return 1;
+        }
+        else fprintf(stderr, "Attempting to continue.\n\n");
+    }
     closedir(d);
-    f_list_delete_ddata(ent_names);
+
+    f_list_sort(dir_entries);
+    // TODO: Change with actual out functions
+    f_list_data_out(dir_entries, stdout);
+    f_list_delete_ddata(dir_entries);
     return 0;
 }
 
@@ -98,6 +122,9 @@ char get_options(int argc, char **argv) {
         case 'a':
             options |= OPT_a_MASK;
             break;
+        case 'l':
+            options |= OPT_l_MASK;
+            break;
         case '?':
             return -1;
         }
@@ -107,10 +134,10 @@ char get_options(int argc, char **argv) {
 }
 
 /* Gets the names of all the files in directory stream d and places
- *   them in ent_names for easy sorting later
- * Returns: 0 if successful, -1 on error (either reading the directory or adding an entry)
+ *   them in dir_entries
+ * Returns: 0 if successful, 1 on readdir error and -1 for memory related errors
  */
-int get_dir_listings(DIR *d, f_list *ent_names, char options) {
+int get_ent_names(DIR *d, f_list *dir_entries, const char options) {
     struct dirent *ent;
 
     errno = 0;
@@ -122,46 +149,89 @@ int get_dir_listings(DIR *d, f_list *ent_names, char options) {
             continue;
         }
 
-        if (_add_entry(ent_names, ent->d_name) < 0)
-            return -1;
+        if (_add_entry(dir_entries, ent->d_name, NULL) < 0) return -1;
 
         errno = 0;
         ent = readdir(d);
     }
-    if (errno != 0) {
-        perror("readdir");
-        return -1;
+    if (errno != 0) return 1;
+    return 0;
+}
+
+/* Gets the names and stat structures of all the files in the directory stream
+ *   and places them in dir_entries
+ * Returns: 0 if successful, 2 if path is too long, 1 on readdir error and -1 if malloc fails
+ */
+int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char options) {
+    struct dirent *ent;
+    struct stat *ent_stat;
+    char path_buf[4096];
+    int path_len = strlen(path);
+
+    if (path_len > 4096 - 256 || (path[path_len-1] != '/' && path_len + 1 > 4096 - 256)) {
+        fprintf(stderr, "Pathname is too large for 4096 byte buffer\nSkipping evaluation to prevent buffer overflow\n");
+        return 2;
     }
+
+    memcpy(path_buf, path, path_len);
+    if (path_buf[path_len-1] != '/') {
+        path_buf[path_len] = '/';
+        path_len++;
+    }
+
+    errno = 0;
+    ent = readdir(d);
+    while (ent != NULL) {
+        if (ent->d_name[0] == '.' && !(options & OPT_a_MASK)) {
+            errno = 0;
+            ent = readdir(d);
+            continue;
+        }
+        
+        errno = 0;
+        ent_stat = malloc(sizeof(struct stat));
+        if (ent_stat == NULL) return -1;
+
+        memcpy(path_buf + path_len, ent->d_name, strlen(ent->d_name) + 1);
+        errno = 0;
+        if (lstat(path_buf, ent_stat) < 0) {
+            free(ent_stat);
+            return -1;
+        }
+
+        if (_add_entry(dir_entries, ent->d_name, ent_stat) < 0) {
+            free(ent_stat);
+            return -1;
+        }
+
+        errno = 0;
+        ent = readdir(d);
+    }
+    if (errno != 0) return 1;
     return 0;
 }
 
 /* Copies name and then adds it to the 
  * Returns: 0 if successful and -1 on error (either maximum array size reached or memory allocation problems)
  */
-int _add_entry(f_list *ent_names, char *name) {
-    int ret, len = strlen(name) + 1;
-    char *str = malloc(sizeof(char) * len);
+int _add_entry(f_list *dir_entries, char *ent_name, struct stat *ent_stat) {
+    int ret, len = strlen(ent_name) + 1;
+    char *ent_name_cpy;
 
-    if (str == NULL) {
-        perror("malloc");
-        return -1;
-    }
-    strncpy(str, name, len);
+    errno = 0;
+    ent_name_cpy = malloc(sizeof(char) * len);
+    if (ent_name_cpy == NULL) return -1;
+    strncpy(ent_name_cpy, ent_name, len);
 
-    ret = f_list_add_elem(ent_names, str, NULL);
+    ret = f_list_add_elem(dir_entries, ent_name_cpy, ent_stat);
     if (ret == 1) {
         fprintf(stderr, "Reached maximum array size! Are you sure you need to store %u entries?\n", _f_list_size[_F_LIST_SIZE_LEN-1]);
-        free(str);
-        return -1;
-    }
-    else if (ret == 2) {
-        fprintf(stderr, "The name string passed into f_list_add_elem was somehow NULL. God help you if you see this\n");
-        free(str);
+        errno = 0;
+        free(ent_name_cpy);
         return -1;
     }
     else if (ret == -1) {
-        perror("f_list_add_elem");
-        free(str);
+        free(ent_name_cpy);
         return -1;
     }
 

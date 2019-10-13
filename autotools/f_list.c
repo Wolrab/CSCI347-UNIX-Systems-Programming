@@ -78,13 +78,12 @@ f_list* f_list_init_seed(unsigned int seed) {
 }
 
 /* Adds a new element to the f_list
- * Returns: 0 on success, 1 if maximum array size reached, 2 for invalid input
- *   and -1 if malloc fails
+ * Returns: 0 on success, 1 if maximum array size reached and -1 if malloc fails
  */
 int f_list_add_elem(f_list *fl, char *f_name, struct stat *f_stat) {
     int i, ret;
 
-    if (f_name == NULL) return 2;
+    assert(f_name != NULL);
 
     if (_f_list_size[fl->size_i] == fl->len) {
         ret = _f_list_resize(fl);
@@ -174,7 +173,7 @@ int _f_list_partition(f_list* fl, int p, int r) {
 int f_list_data_out(f_list* fl, FILE *f) {
     int i;
     for (i = 0; i < fl->len; i++) {
-        if (fprintf(f, "%s\n", fl->f_data[i]->f_name) < 0) {
+        if (fprintf(f, "%s, %s\n", fl->f_data[i]->f_name, (fl->f_data[i]->f_stat == NULL ? "NULL" : "NOT_NULL")) < 0) {
             return -1;
         }
     }
@@ -185,13 +184,16 @@ int f_list_data_out(f_list* fl, FILE *f) {
  */
 void f_list_delete_ddata(f_list* fl) {
     int i;
-    for (i = 0; i < fl->len; i++) {
-        free(fl->f_data[i]->key.cmp_char);
-        free(fl->f_data[i]->f_name);
-        free(fl->f_data[i]->f_stat);
-        free(fl->f_data[i]);
+
+    if (fl != NULL) {
+        for (i = 0; i < fl->len; i++) {
+            free(fl->f_data[i]->key.cmp_char);
+            free(fl->f_data[i]->f_name);
+            free(fl->f_data[i]->f_stat);
+            free(fl->f_data[i]);
+        }
+        free(fl);
     }
-    free(fl);
 }
 
 /* Deletes an f_list and assumes all data given was statically allocated
