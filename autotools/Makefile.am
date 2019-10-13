@@ -1,5 +1,5 @@
 bin_PROGRAMS=ls
-ls_SOURCES=ls.c bst.c ls.h bst.h
+ls_SOURCES=ls.c f_list.c ls.h f_list.h
 
 EXTRA_DIST=tests
 
