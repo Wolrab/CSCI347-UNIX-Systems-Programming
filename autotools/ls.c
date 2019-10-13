@@ -1,16 +1,12 @@
 #include "ls.h"
 
+// Quick macro to help in navigating argv
 #define IS_OPT(s) (s[0]=='-')
 
-/* TODO
- * -l option
- *   +need a local function for printing
- *   +probably need qs to give back an array that isn't garbage
- */
-
 /* Parses options, and in the spirit of the real ls parses all non-option
- *   arguments as paths to sequentially evaluate. The sequence is evaluated 
- *   FIFO with reference to the relative position of each path.
+ *   arguments as paths to sequentially evaluate. The sequence of paths is 
+ *   evaluated with FIFO order.
+ * Returns: 0 on success, 1 on error.
  */
 int main(int argc, char **argv) {
     char options;
@@ -49,6 +45,7 @@ int main(int argc, char **argv) {
 }
 
 /* Prints the entries of a single path to stdout with a given set of options
+ * Returns: 0 on success, 1 on error (printing the errors when past functions have not taken care of that)
  */
 int _ls(char *path, char options) {
     DIR *d;
@@ -89,7 +86,8 @@ int _ls(char *path, char options) {
 }
 
 /* Gets flag bits and pushes non-options to the end of argv.
- * The definition of an option in this case is consistent with the IS_OPT macro.
+ * Each character in a string that starts with a - is considered an option.
+ * Returns: 0 on success, -1 if an unknown option is found.
  */
 char get_options(int argc, char **argv) {
     int options = 0;
@@ -112,7 +110,7 @@ char get_options(int argc, char **argv) {
  *   them in ent_names for easy sorting later
  * Returns: 0 if successful, -1 on error (either reading the directory or adding an entry)
  */
-int get_dir_listings(DIR *d, f_list *fl, char options) {
+int get_dir_listings(DIR *d, f_list *ent_names, char options) {
     struct dirent *ent;
 
     errno = 0;
@@ -124,7 +122,7 @@ int get_dir_listings(DIR *d, f_list *fl, char options) {
             continue;
         }
 
-        if (_add_entry(fl, ent->d_name) < 0)
+        if (_add_entry(ent_names, ent->d_name) < 0)
             return -1;
 
         errno = 0;
@@ -140,7 +138,7 @@ int get_dir_listings(DIR *d, f_list *fl, char options) {
 /* Copies name and then adds it to the 
  * Returns: 0 if successful and -1 on error (either maximum array size reached or memory allocation problems)
  */
-int _add_entry(f_list *fl, char *name) {
+int _add_entry(f_list *ent_names, char *name) {
     int ret, len = strlen(name) + 1;
     char *str = malloc(sizeof(char) * len);
 
@@ -150,9 +148,14 @@ int _add_entry(f_list *fl, char *name) {
     }
     strncpy(str, name, len);
 
-    ret = f_list_add_elem(fl, str, NULL);
+    ret = f_list_add_elem(ent_names, str, NULL);
     if (ret == 1) {
         fprintf(stderr, "Reached maximum array size! Are you sure you need to store %u entries?\n", _f_list_size[_F_LIST_SIZE_LEN-1]);
+        free(str);
+        return -1;
+    }
+    else if (ret == 2) {
+        fprintf(stderr, "The name string passed into f_list_add_elem was somehow NULL. God help you if you see this\n");
         free(str);
         return -1;
     }
