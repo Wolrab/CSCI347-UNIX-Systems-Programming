@@ -2,6 +2,12 @@
 
 #define IS_OPT(s) (s[0]=='-')
 
+/* TODO
+ * -l option
+ *   +need a local function for printing
+ *   +probably need qs to give back an array that isn't garbage
+ */
+
 /* Parses options, and in the spirit of the real ls parses all non-option
  *   arguments as paths to sequentially evaluate. The sequence is evaluated 
  *   FIFO with reference to the relative position of each path.
@@ -16,7 +22,7 @@ int main(int argc, char **argv) {
     options = get_options(argc, argv);
     if (options == -1) {
         printf("Usage: ls [-a] [file...]\n");
-        return -1;
+        return 1;
     }
 
     for (path_ind = 1; path_ind<argc && IS_OPT(argv[path_ind]); path_ind++) continue;
@@ -47,7 +53,7 @@ int main(int argc, char **argv) {
  */
 int _ls(char *path, char options) {
     DIR *d;
-    tree *list;
+    qs *ent_names;
     int err;
     char *err_str;
 
@@ -61,24 +67,25 @@ int _ls(char *path, char options) {
         errno = err;
         perror(err_str);
         free(err_str);
-        return -1;
+        return 1;
     }
 
-    list = bst_init();    
-    if (list == NULL) {
-        perror("bst_init");
-        return -1;
+    ent_names = qs_init_container();    
+    if (ent_names == NULL) {
+        perror("qs_init_container");
+        return 1;
     }
 
-    if (get_dir_listings(d, list, options) < 0) {
+    if (get_dir_listings(d, ent_names, options) < 0) {
         closedir(d);
-        bst_delete_tree_ddata(list);
-        return -1;
+        qs_delete_ddata(ent_names);
+        return 1;
     }
 
-    bst_inorder_out(list, stdout);
+    qs_sort(ent_names);
+    qs_data_out(ent_names, stdout);
     closedir(d);
-    bst_delete_tree_ddata(list);
+    qs_delete_ddata(ent_names);
     return 0;
 }
 
@@ -103,10 +110,10 @@ char get_options(int argc, char **argv) {
 }
 
 /* Gets the names of all the files in directory stream d and places
- *   them in the BST list
+ *   them in ent_names for easy sorting later
  * Returns: 0 if successful, -1 on error (either reading the directory or adding an entry)
  */
-int get_dir_listings(DIR *d, tree *list, char options) {
+int get_dir_listings(DIR *d, qs *ent_names, char options) {
     struct dirent *ent;
 
     errno = 0;
@@ -118,7 +125,7 @@ int get_dir_listings(DIR *d, tree *list, char options) {
             continue;
         }
 
-        if (_add_entry(list, ent->d_name) < 0)
+        if (_add_entry(ent_names, ent->d_name) < 0)
             return -1;
 
         errno = 0;
@@ -131,10 +138,10 @@ int get_dir_listings(DIR *d, tree *list, char options) {
     return 0;
 }
 
-/* Copies name and then adds it to the BST list
- * Returns: 0 if successful and -1 on error (either duplicate entries in a directory or memory allocation problems)
+/* Copies name and then adds it to the 
+ * Returns: 0 if successful and -1 on error (either maximum array size reached or memory allocation problems)
  */
-int _add_entry(tree *list, char *name) {
+int _add_entry(qs *ent_names, char *name) {
     int ret, len = strlen(name) + 1;
     char *str = malloc(sizeof(char) * len);
 
@@ -144,14 +151,14 @@ int _add_entry(tree *list, char *name) {
     }
     strncpy(str, name, len);
 
-    ret = bst_add_node(list, str);
+    ret = qs_add_elem(ent_names, str);
     if (ret == 1) {
-        fprintf(stderr, "Duplicate directory entry %s found, something is wrong\n", name);
+        fprintf(stderr, "Reached maximum array size! Are you sure you need to store %u entries?\n", arr_size[N_ARR_SIZE-1]);
         free(str);
         return -1;
     }
     else if (ret == -1) {
-        perror("bst_add_node");
+        perror("qs_add_elem");
         free(str);
         return -1;
     }

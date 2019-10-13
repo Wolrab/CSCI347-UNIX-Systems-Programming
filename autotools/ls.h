@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdbool.h>
-#include "bst.h"
+#include "dir_arr.h"
 
 // All the options recognized by the program
 #define OPT_STRING "a"
@@ -26,11 +26,11 @@ int _ls(char *path, char options);
 char get_options(int argc, char **argv);
 
 // Uses _add_entry to fill the tree list with all the entries of directory d
-int get_dir_listings(DIR *d, tree *list, char options);
+int get_dir_listings(DIR *d, qs *ent_names, char options);
 
 // All data added to list must be added through _add_entry as there are no
 //   guarantees about the long term storage of variables pointed to by dirent.
 //   _add_entry manages the copying of those values.
-int _add_entry(tree *list, char *name);
+int _add_entry(qs *ent_names, char *name);
 
 #endif /* __LS_H */
