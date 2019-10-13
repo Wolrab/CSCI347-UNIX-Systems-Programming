@@ -15,7 +15,6 @@
 int main(int argc, char **argv) {
     char options;
     unsigned int path_ind;
-    char *path, *err_str;
     int err, ret = 0;
     bool cont;
 
@@ -53,7 +52,7 @@ int main(int argc, char **argv) {
  */
 int _ls(char *path, char options) {
     DIR *d;
-    qs *ent_names;
+    f_list *ent_names;
     int err;
     char *err_str;
 
@@ -70,22 +69,22 @@ int _ls(char *path, char options) {
         return 1;
     }
 
-    ent_names = qs_init_container();    
+    ent_names = f_list_init();    
     if (ent_names == NULL) {
-        perror("qs_init_container");
+        perror("f_list_init");
         return 1;
     }
 
     if (get_dir_listings(d, ent_names, options) < 0) {
         closedir(d);
-        qs_delete_ddata(ent_names);
+        f_list_delete_ddata(ent_names);
         return 1;
     }
 
-    qs_sort(ent_names);
-    qs_data_out(ent_names, stdout);
+    f_list_sort(ent_names);
+    f_list_data_out(ent_names, stdout);
     closedir(d);
-    qs_delete_ddata(ent_names);
+    f_list_delete_ddata(ent_names);
     return 0;
 }
 
@@ -113,7 +112,7 @@ char get_options(int argc, char **argv) {
  *   them in ent_names for easy sorting later
  * Returns: 0 if successful, -1 on error (either reading the directory or adding an entry)
  */
-int get_dir_listings(DIR *d, qs *ent_names, char options) {
+int get_dir_listings(DIR *d, f_list *fl, char options) {
     struct dirent *ent;
 
     errno = 0;
@@ -125,7 +124,7 @@ int get_dir_listings(DIR *d, qs *ent_names, char options) {
             continue;
         }
 
-        if (_add_entry(ent_names, ent->d_name) < 0)
+        if (_add_entry(fl, ent->d_name) < 0)
             return -1;
 
         errno = 0;
@@ -141,7 +140,7 @@ int get_dir_listings(DIR *d, qs *ent_names, char options) {
 /* Copies name and then adds it to the 
  * Returns: 0 if successful and -1 on error (either maximum array size reached or memory allocation problems)
  */
-int _add_entry(qs *ent_names, char *name) {
+int _add_entry(f_list *fl, char *name) {
     int ret, len = strlen(name) + 1;
     char *str = malloc(sizeof(char) * len);
 
@@ -151,14 +150,14 @@ int _add_entry(qs *ent_names, char *name) {
     }
     strncpy(str, name, len);
 
-    ret = qs_add_elem(ent_names, str);
+    ret = f_list_add_elem(fl, str, NULL);
     if (ret == 1) {
-        fprintf(stderr, "Reached maximum array size! Are you sure you need to store %u entries?\n", arr_size[N_ARR_SIZE-1]);
+        fprintf(stderr, "Reached maximum array size! Are you sure you need to store %u entries?\n", _f_list_size[_F_LIST_SIZE_LEN-1]);
         free(str);
         return -1;
     }
     else if (ret == -1) {
-        perror("qs_add_elem");
+        perror("f_list_add_elem");
         free(str);
         return -1;
     }
