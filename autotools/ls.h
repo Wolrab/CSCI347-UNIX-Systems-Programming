@@ -16,10 +16,24 @@
 #define OPT_a_MASK 0x01
 #define OPT_l_MASK 0x02
 
-// Macros to add more information to perror and allocate the correct number of bytes
-//   for the error string
-#define OPENDIR_ERROR_F "opendir: cannot access '%s'"
-#define OPENDIR_ERROR_NONF_LEN strlen(OPENDIR_ERROR_F)-2
+typedef enum ls_err ls_err;
+enum ls_err {
+    LS_NONE,
+    LS_MALLOC_ERR, // errno: meaningful
+    LS_DIR_ACC_ERR, // errno: meaningful
+    LS_DIR_READ_ENTRY_ERR, // errno: meaningful
+    LS_LSTAT_ERR // errno: meaningful
+} ls_err_state = LS_NONE;
+
+static const char *ls_err_out[] = {
+    "no error",
+    "malloc",
+    "opendir",
+    "readdir",
+    "lstat"
+};
+
+void ls_perror(char *prog);
 
 // Actual ls functionality
 int _ls(char *path, char options);
@@ -32,11 +46,5 @@ int get_ent_names(DIR *d, f_list *dir_entries, const char options);
 
 // Uses _add_entry to fill the f_list with all the names and stats of entries in d
 int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char options);
-
-// All data added to list must be added through _add_entry as there are no
-//   guarantees about the long term storage of d_name held in the dirent
-//   structure. This manages the copying of that memory. The stat structure 
-//   is fine because it's in our own buffer.
-int _add_entry(f_list *dir_entries, char *ent_name, struct stat *ent_stat);
 
 #endif /* __LS_H */

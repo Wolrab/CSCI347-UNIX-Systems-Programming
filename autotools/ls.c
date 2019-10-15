@@ -1,9 +1,5 @@
 #include "ls.h"
 
-// TODO: Scrap all error checking and remake it from scratch
-// Return error is an enum value to an array?
-// Also, using argv[0] like big boi ls
-
 // Quick macro to help in navigating argv
 #define IS_OPT(s) (s[0]=='-')
 
@@ -15,8 +11,9 @@
 int main(int argc, char **argv) {
     char options;
     unsigned int path_ind;
-    int err, ret = 0;
     bool cont;
+
+    int err, ret = 0;
 
     options = get_options(argc, argv);
     if (options == -1) {
@@ -30,14 +27,23 @@ int main(int argc, char **argv) {
     }
     else if (path_ind == argc-1) {
         ret = _ls(argv[path_ind], options);
+        if (err && ls_err_state != LS_NONE) {
+            ls_perror(argv[0]);        
+        }
     }
     else {
         do {
             printf("%s:\n", argv[path_ind]);
 
             err = _ls(argv[path_ind], options);
-            if (!ret && err) ret = err;
-            
+            if (err) {
+                ret = !ret && err ? err : ret;
+                if (ls_err_state != LS_NONE) {    
+                    ls_perror(argv[0]);
+                    if (ls_err_state == LS_MALLOC_ERR)
+                        break;
+                }
+            }
             path_ind++;
             cont = path_ind < argc;
             
@@ -48,64 +54,59 @@ int main(int argc, char **argv) {
     return ret;
 }
 
+void ls_perror(char *pname) {
+    int err = errno;
+    char buffer[4096];
+    if (ls_err_state == LS_MALLOC_ERR || ls_err_state == LS_DIR_ACC_ERR \
+        || ls_err_state == LS_DIR_READ_ENTRY_ERR) {
+        sprintf(buffer, "%s: %s", pname, ls_err_out[ls_err_state]);
+        errno = err;
+        perror(buffer);
+    }
+}
+
 /* Prints the entries of a single path to stdout with a given set of options
- * Returns: 0 on success, 1 on error (printing the errors when past functions have not taken care of that)
+ * Returns: 0 on success, 1 on error
  */
 int _ls(char *path, char options) {
     DIR *d;
-    f_list *dir_entries;
-    int ret, err;
-    char *err_str;
+    f_list dir_entries;
+    int ret;
 
+    errno = 0;
     d = opendir(path);
     if (d == NULL) {
-        err = errno;
-
-        err_str = malloc(sizeof(char) * (OPENDIR_ERROR_NONF_LEN + strlen(path) + 1));
-        sprintf(err_str, OPENDIR_ERROR_F, path);
-
-        errno = err;
-        perror(err_str);
-        free(err_str);
+        ls_err_state = LS_DIR_ACC_ERR;
         return 1;
     }
 
-    dir_entries = f_list_init();    
-    if (dir_entries == NULL) {
-        perror("f_list_init");
+    if (f_list_init(&dir_entries) == NULL) {
+        ls_err_state = LS_MALLOC_ERR;
         return 1;
     }
 
-    if (options & OPT_l_MASK) {
-        ret = get_ent_stats(d, dir_entries, path, options);
-        if (ret == 2) return 1;
-    }
+    if (options & OPT_l_MASK)
+        ret = get_ent_stats(d, &dir_entries, path, options);
     else
-        ret = get_ent_names(d, dir_entries, options);
+        ret = get_ent_names(d, &dir_entries, options);
 
-    if (ret < 0) {
-        if (errno == 0)
-            fprintf(stderr, "Attempting to print directories saved\n\n");
-        else {
-            perror("This is fucked");
-            f_list_delete_ddata(dir_entries);
+    if (ret) {
+        if (dir_entries.err == FL_MALLOC_ERR) {
+            ls_err_state = LS_MALLOC_ERR;
             return 1;
         }
-    }
-    else if (ret == 1) {
-        perror("readdir");
-        if (dir_entries == NULL) {
-            fprintf(stderr, "Catastrophic, exiting.\n");
-            return 1;
+        if (dir_entries.err == FL_ARRAY_OVERFLOW_ERR) {
+            fprintf(stderr, "%s\n", f_list_err_out[FL_ARRAY_OVERFLOW_ERR]);
+            fprintf(stderr, "printing entries available\n");
         }
-        else fprintf(stderr, "Attempting to continue.\n\n");
     }
+   
     closedir(d);
 
-    f_list_sort(dir_entries);
+    f_list_sort(&dir_entries);
     // TODO: Change with actual out functions
-    f_list_data_out(dir_entries, stdout);
-    f_list_delete_ddata(dir_entries);
+    f_list_data_out(&dir_entries, stdout);
+    f_list_delete_data(&dir_entries);
     return 0;
 }
 
@@ -135,7 +136,7 @@ char get_options(int argc, char **argv) {
 
 /* Gets the names of all the files in directory stream d and places
  *   them in dir_entries
- * Returns: 0 if successful, 1 on readdir error and -1 for memory related errors
+ * Returns: 0 if successful, 1 on error
  */
 int get_ent_names(DIR *d, f_list *dir_entries, const char options) {
     struct dirent *ent;
@@ -149,29 +150,30 @@ int get_ent_names(DIR *d, f_list *dir_entries, const char options) {
             continue;
         }
 
-        if (_add_entry(dir_entries, ent->d_name, NULL) < 0) return -1;
+        if (f_list_add_elem(dir_entries, ent->d_name, NULL)) {
+            if (dir_entries->err != FL_NONE)
+                return 1;
+        }
 
         errno = 0;
         ent = readdir(d);
     }
-    if (errno != 0) return 1;
+    if (errno != 0) {
+        ls_err_state = LS_DIR_READ_ENTRY_ERR;
+        return 1;
+    }
     return 0;
 }
 
 /* Gets the names and stat structures of all the files in the directory stream
  *   and places them in dir_entries
- * Returns: 0 if successful, 2 if path is too long, 1 on readdir error and -1 if malloc fails
+ * Returns: 0 if successful, 1 on error
  */
 int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char options) {
     struct dirent *ent;
     struct stat *ent_stat;
-    char path_buf[4096];
-    int path_len = strlen(path);
-
-    if (path_len > 4096 - 256 || (path[path_len-1] != '/' && path_len + 1 > 4096 - 256)) {
-        fprintf(stderr, "Pathname is too large for 4096 byte buffer\nSkipping evaluation to prevent buffer overflow\n");
-        return 2;
-    }
+    char path_buf[PATH_MAX];
+    int path_len = strlen(path), err;
 
     memcpy(path_buf, path, path_len);
     if (path_buf[path_len-1] != '/') {
@@ -190,50 +192,28 @@ int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char opti
         
         errno = 0;
         ent_stat = malloc(sizeof(struct stat));
-        if (ent_stat == NULL) return -1;
+        if (ent_stat == NULL) {
+            ls_err_state = LS_MALLOC_ERR;
+            return 1;
+        }
 
         memcpy(path_buf + path_len, ent->d_name, strlen(ent->d_name) + 1);
         errno = 0;
         if (lstat(path_buf, ent_stat) < 0) {
+            err = errno;
             free(ent_stat);
-            return -1;
+            errno = err;
+            perror("lstat");
         }
 
-        if (_add_entry(dir_entries, ent->d_name, ent_stat) < 0) {
-            free(ent_stat);
-            return -1;
+        if (f_list_add_elem(dir_entries, ent->d_name, ent_stat)) {
+            if (dir_entries->err != FL_NONE)
+                return 1;
         }
 
         errno = 0;
         ent = readdir(d);
     }
     if (errno != 0) return 1;
-    return 0;
-}
-
-/* Copies name and then adds it to the 
- * Returns: 0 if successful and -1 on error (either maximum array size reached or memory allocation problems)
- */
-int _add_entry(f_list *dir_entries, char *ent_name, struct stat *ent_stat) {
-    int ret, len = strlen(ent_name) + 1;
-    char *ent_name_cpy;
-
-    errno = 0;
-    ent_name_cpy = malloc(sizeof(char) * len);
-    if (ent_name_cpy == NULL) return -1;
-    strncpy(ent_name_cpy, ent_name, len);
-
-    ret = f_list_add_elem(dir_entries, ent_name_cpy, ent_stat);
-    if (ret == 1) {
-        fprintf(stderr, "Reached maximum array size! Are you sure you need to store %u entries?\n", _f_list_size[_F_LIST_SIZE_LEN-1]);
-        errno = 0;
-        free(ent_name_cpy);
-        return -1;
-    }
-    else if (ret == -1) {
-        free(ent_name_cpy);
-        return -1;
-    }
-
     return 0;
 }
