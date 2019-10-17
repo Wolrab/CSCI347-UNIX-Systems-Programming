@@ -8,13 +8,27 @@
 #include <sys/stat.h>
 #include "f_list.h"
 
+/* The writable globals for ls are...
+ * ls_err ls_err_state
+ * static const char* ls_err_prog
+ * static const char* ls_err_path
+ * 
+ * The proper use of these variables must be guarenteed by a VERY strict error-
+ *   return path. This is necessary anyways to ensure proper resource deallocation
+ *   and errno preservation.
+ * 
+ * In the future I will create a proper struct that stores all this information so 
+ *   that when a function returns out, all the necessary information will be neatly 
+ *   contained within recieving the function  
+ */
+
 // All the options recognized by the program
-#define OPT_STRING "al"
+static const char const* opt_string = "al";
 
 // The bitmask for each of the options
 // LIMITED TO 7 OPTIONS WITH CHAR as -1 is reserved for an invalid option error
-#define OPT_a_MASK 0x01
-#define OPT_l_MASK 0x02
+static const char opt_a_mask = 0x01;
+static const char opt_l_mask = 0x02;
 
 typedef enum ls_err ls_err;
 static enum ls_err {
@@ -26,6 +40,13 @@ static enum ls_err {
 } ls_err_state = LS_ERR_NONE;
 static const char *ls_err_prog;
 static const char *ls_err_path;
+
+// TODO: Use to store error values from ahead in the chain
+struct ls_err_state_s {
+    ls_err err_state;
+    const char *err_prog;
+    const char *err_path; 
+};
 
 static const char *const ls_err_str[] = {
     "no error",
