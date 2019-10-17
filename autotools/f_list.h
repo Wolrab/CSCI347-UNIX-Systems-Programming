@@ -24,7 +24,7 @@ enum f_list_err {
     FL_ERR_MALLOC,          // errno: meaningful
     FL_ERR_ARRAY_OVERFLOW   // errno: not meaninful
 };
-static const char *f_list_err_out[] = {
+static const char *const f_list_err_out[] = {
     "no error",
     "malloc",
     "array overflow: exceeded maximum array size"

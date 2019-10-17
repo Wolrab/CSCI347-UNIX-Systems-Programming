@@ -12,7 +12,6 @@ int main(int argc, char **argv) {
     char options;
     unsigned int path_ind;
     bool cont;
-
     int err, ret = 0;
 
     options = get_options(argc, argv);

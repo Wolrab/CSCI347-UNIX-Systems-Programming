@@ -27,7 +27,7 @@ static enum ls_err {
 static const char *ls_err_prog;
 static const char *ls_err_path;
 
-static const char *ls_err_str[] = {
+static const char *const ls_err_str[] = {
     "no error",
     "malloc",
     "cannot open dir '%s'",
