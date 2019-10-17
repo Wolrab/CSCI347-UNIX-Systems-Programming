@@ -74,9 +74,6 @@ void f_list_sort(f_list* fl);
 void _f_list_sort_r(f_list* fl, int p, int r);
 // Partition function for quicksort, do not call.
 int _f_list_partition(f_list* fl, int p, int r);
-// Obselete function for doing simple data output
-// Removing soon!
-int f_list_data_out(f_list* fl, FILE *f);
 // Deletes the f_list
 void f_list_delete_data(f_list* fl);
 

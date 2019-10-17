@@ -183,20 +183,6 @@ int _f_list_partition(f_list* fl, int s, int r) {
     return i;
 }
 
-/* !!!Obselete!!!
- * Prints the f_name values seperated by newlines to the specified file
- * Returns: 0 on success, -1 if fprintf failed
- */
-int f_list_data_out(f_list* fl, FILE *f) {
-    int i;
-    for (i = 0; i < fl->len; i++) {
-        if (fprintf(f, "%s, %s\n", fl->f_data[i]->f_name, (fl->f_data[i]->f_stat == NULL ? "NULL" : "NOT_NULL")) < 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
 /* Deletes an f_list */
 void f_list_delete_data(f_list* fl) {
     int i;

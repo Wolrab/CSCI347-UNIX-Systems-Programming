@@ -3,6 +3,10 @@
 // Quick macro to help in navigating argv
 #define IS_OPT(s) (s[0]=='-')
 
+// Arbitrary whatever buffer (DANGER DANGER HIGH VOLTAGE)
+static char buffer[4096];
+static const int buffer_size = 4096;
+
 /* Parses options, and in the spirit of the real ls parses all non-option
  *   arguments as paths to sequentially evaluate. The sequence of paths is 
  *   evaluated with FIFO order.
@@ -56,16 +60,18 @@ int main(int argc, char **argv) {
 
 /* For printing ls errors with meaningfull errno values. Prints the program name, the error 
  *   message indexed by ls_error_state, and passes that string to perror to be handled by
- *   perror 
+ *   perror
+ * It should be noted, but I am not checking the returns of *printf's in here. If the output 
+ *   for error checking fails, then god has willed the program to crash, and he wishes his 
+ *   reasons to remain an eternal secret. I shall respect those wishes.
  */
 void ls_perror() {
-    char buffer[4096];
     int err = errno;
     if (ls_err_state == LS_ERR_MALLOC) {
         sprintf(buffer, "%s: %s", ls_err_prog, ls_err_str[ls_err_state]);
     }
     else if (ls_err_state == LS_ERR_DIR_ACC || ls_err_state == LS_ERR_DIR_READ_ENTRY \
-             || ls_err_state == LS_ERR_LSTAT) {
+             || ls_err_state == LS_ERR_LSTAT || ls_err_state == LS_ERR_FOPEN) {
         sprintf(buffer, "%s: ", ls_err_prog);
         sprintf(buffer + strlen(buffer), ls_err_str[ls_err_state], ls_err_path);
     }
@@ -94,7 +100,7 @@ int _ls(char *path, char options) {
         return 1;
     }
 
-    if (options & OPT_l_MASK)
+    if (options & opt_l_mask)
         ret = get_ent_stats(d, &dir_entries, path, options);
     else 
         ret = get_ent_names(d, &dir_entries, path, options);
@@ -126,8 +132,14 @@ int _ls(char *path, char options) {
     closedir(d);
 
     f_list_sort(&dir_entries);
-    // TODO: Change with actual out functions
-    f_list_data_out(&dir_entries, stdout);
+    if (options & opt_l_mask) {
+        if (output_ent_stats(&dir_entries))
+            // No checking as error is caught in main
+    }
+    else
+        output_ent_names(&dir_entries);
+    
+    f_list_delete_data(&dir_entries);
     return ret;
 
     err_list_cleanup:
@@ -144,20 +156,20 @@ int _ls(char *path, char options) {
  */
 char get_options(int argc, char **argv) {
     int options = 0;
-    char opt = getopt(argc, argv, OPT_STRING);
+    char opt = getopt(argc, argv, opt_string);
 
     while (opt != -1) {
         switch (opt) {
         case 'a':
-            options |= OPT_a_MASK;
+            options |= opt_a_mask;
             break;
         case 'l':
-            options |= OPT_l_MASK;
+            options |= opt_l_mask;
             break;
         case '?':
             return -1;
         }
-        opt = getopt(argc, argv, OPT_STRING);
+        opt = getopt(argc, argv, opt_string);
     }
     return options;
 }
@@ -172,7 +184,7 @@ int get_ent_names(DIR *d, f_list *dir_entries, const char *path, const char opti
     errno = 0;
     ent = readdir(d);
     while (ent != NULL) {
-        if (ent->d_name[0] == '.' && !(options & OPT_a_MASK)) {
+        if (ent->d_name[0] == '.' && !(options & opt_a_mask)) {
             errno = 0;
             ent = readdir(d);
             continue;
@@ -213,7 +225,7 @@ int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char opti
     errno = 0;
     ent = readdir(d);
     while (ent != NULL) {
-        if (ent->d_name[0] == '.' && !(options & OPT_a_MASK)) {
+        if (ent->d_name[0] == '.' && !(options & opt_a_mask)) {
             errno = 0;
             ent = readdir(d);
             continue;
@@ -251,4 +263,171 @@ int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char opti
         return 1;
     }
     return 0;
+}
+
+void output_ent_names(f_list *dir_entries) {
+    int i;
+    for (i = 0; i < dir_entries->len; i++) {
+        printf("%s\n", dir_entries->f_data[i]->f_name);
+    }
+}
+
+int output_ent_stats(f_list *dir_entries) {
+    struct stat_out_s *stat_strings;
+    int i;
+    FILE *passwd, *group;
+
+    errno = 0;
+    stat_strings = malloc(sizeof(struct stat_out_s) * (dir_entries->len-1));
+    if (stat_strings == NULL && errno) {
+        ls_err_state = LS_ERR_MALLOC;
+        return 1;
+    }
+    errno = 0;
+    passwd = fopen("/etc/passwd", "r");
+    if (passwd == NULL) {
+        ls_err_state = LS_ERR_FOPEN;
+        ls_err_path = "/etc/passwd";
+        goto cleanup_stat_strings;
+    }
+    errno = 0;
+    group = fopen("/etc/group", "r");
+    if (group == NULL) {
+        ls_err_state = LS_ERR_FOPEN;
+        ls_err_path = "/etc/group";
+        goto cleanup_passwd;
+    }
+
+    for (i = 0; i < dir_entries->len; i++) {
+        if (get_stat_out(&stat_strings[i], dir_entries->f_data[i]->f_stat, passwd, group)) {
+            if (ls_err_state == LS_ERR_MALLOC)
+                goto cleanup_group;
+            if (ls_err_state == LS_ERR_REGEX)
+                fprintf(stderr, "Could not print stats for '%s', continuing to next element\n", dir_entries->f_data[i]->f_name);
+        }
+    }
+
+    // 1. Find the largest string for each non-constant element
+    // 2. Print them out in a cool formated manner!
+
+    return 0;
+
+    cleanup_group:
+    fclose(group);
+    cleanup_passwd:
+    fclose(passwd);
+    cleanup_stat_strings:
+    free(stat_strings);
+    return 1;
+}
+
+inline int get_stat_out(struct stat_out_s *stat_out, struct stat *f_stat, FILE *passwd, FILE *group) {
+    get_mode(stat_out->mode, f_stat->st_mode);
+    get_nlink(stat_out->nlink, f_stat->st_nlink);
+    if (get_usr(stat_out, f_stat->st_uid, f_stat->st_gid, passwd))
+        return 1;
+
+    return 0;
+    
+    cleanup_mtim:
+    free(stat_out->mtim); // Correct? I haven't a faintest clue what fucking library does this
+    cleanup_grp:
+    free(stat_out->grp); // Correct: reference to line from getline which is allocated on the heap
+    cleanup_usr:
+    free(stat_out->usr); // Correct: reference to line from getline which is allocated on the heap
+    return 1;
+}
+
+inline void get_mode(char *mode_s, mode_t mode) {
+    if (S_ISREG(mode))
+        mode_s[0] = '-';
+    else if (S_ISDIR(mode))
+        mode_s[0] = 'd';
+    else if (S_ISLNK(mode))
+        mode_s[0] = 'l';
+    else if (S_ISFIFO(mode))
+        mode_s[0] = 'p';
+    else if (S_ISSOCK(mode))
+        mode_s[0] = 's';
+    else if (S_ISCHR(mode))
+        mode_s[0] = 'c';
+    else if (S_ISBLK(mode))
+        mode_s[0] = 'b';
+
+    mode_s[1] = S_IRUSR & mode ? 'r' : '-';
+    mode_s[2] = S_IWUSR & mode ? 'w' : '-';
+    mode_s[3] = S_IXUSR & mode ? 'x' : '-';
+    mode_s[4] = S_IRGRP & mode ? 'r' : '-';
+    mode_s[5] = S_IWGRP & mode ? 'w' : '-';
+    mode_s[6] = S_IXGRP & mode ? 'x' : '-';
+    mode_s[7] = S_IROTH & mode ? 'r' : '-';
+    mode_s[8] = S_IWOTH & mode ? 'w' : '-';
+    mode_s[9] = S_IXOTH & mode ? 'x' : '-';
+    mode_s[10] = '\0';
+}
+
+inline void get_nlink(char *nlink_s, nlink_t nlink) {
+    sprintf(nlink_s, "%d", nlink);
+    return 0;
+}
+
+inline int get_usr(char *uid_s, uid_t uid, uid_t gid, FILE *passwd) {
+    char pat[34+10+10+1];
+    regex_t reg;
+    regmatch_t match[2];
+    char *line = NULL;
+    int len, ret, reg_ret;
+
+    sprintf(pat, "^\\([[:print:]]*\\):[[:print:]]*:%d:%d", uid, gid);
+    reg_ret = regcomp(&reg, pat, 0);
+    if (reg_ret) {
+        regerror(reg_ret, &reg, buffer, buffer_size);
+        fprintf(stderr, "Regex error: %s\n", buffer);
+        ls_err_state = LS_ERR_REGEX;
+        return 1;
+    }
+
+    errno = 0;
+    ret = getline(&line, &len, passwd);
+    while ( !(ret < 0) ) {
+        reg_ret = regexec(&reg, line, 2, match, 0);
+        if (reg_ret != REG_NOMATCH) break;
+
+        free(line);
+        line = NULL;
+        errno = 0;
+        ret = getline(&line, &len, passwd);
+    }
+    if (ret < 0 && errno) {
+        // getline threw an error
+        // since this is something to do with the file, unwind all the way out of the print function
+        //   and let perror be called from main
+        // add a new entry to your LS_ERR too!
+        return 1;
+    }
+    else if (ret < 0 && reg_ret == REG_NOMATCH) {
+        // reached the end of passwd without a match
+        // output uid number instead of name
+    }
+    else if (reg_ret != REG_NOMATCH) {
+        // Nice!
+        // take string from match[1].so to match[1].eo inclusive (so +1 for null byte)
+        uid_s = line + match[1].rm_so;
+        uid_s[match[1].rm_eo + 1] = '\0';
+    }
+    return 0;
+}
+
+inline int get_grp(char *gid_s, uid_t gid, FILE *group) {
+
+}
+
+// Use the same 4 byte trick???
+inline int get_size(char *size_s, off_t size) {
+
+}
+
+// Jesus I still gotta do this
+inline int get_mtim(char *mtim_s, struct timespec *mtim) {
+
 }
