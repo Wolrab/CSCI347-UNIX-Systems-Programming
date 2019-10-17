@@ -20,9 +20,9 @@ static const unsigned _f_list_size_num = 14;
 
 typedef enum f_list_err f_list_err;
 enum f_list_err {
-    FL_NONE,
-    FL_MALLOC_ERR, // errno: meaningful
-    FL_ARRAY_OVERFLOW_ERR // errno: not meaninful
+    FL_ERR_NONE,
+    FL_ERR_MALLOC,          // errno: meaningful
+    FL_ERR_ARRAY_OVERFLOW   // errno: not meaninful
 };
 static const char *f_list_err_out[] = {
     "no error",

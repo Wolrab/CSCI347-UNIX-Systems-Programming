@@ -28,7 +28,7 @@ int make_key(char *f_name, struct key_s *key, f_list_err *err) {
     errno = 0;
     key->cmp_char = malloc(sizeof(void*) * len);
     if (key->cmp_char == NULL && errno) {
-        *err = FL_MALLOC_ERR;
+        *err = FL_ERR_MALLOC;
         return 1;
     }
 
@@ -57,7 +57,7 @@ f_list* f_list_init(f_list *fl) {
     }
     fl->len = 0;
     fl->size_i = 0;
-    fl->err = FL_NONE;
+    fl->err = FL_ERR_NONE;
 
     srand((unsigned int)time(NULL));
     return fl;
@@ -82,7 +82,7 @@ f_list* f_list_init_seed(f_list *fl, unsigned int seed) {
     }
     fl->len = 0;
     fl->size_i = 0;
-    fl->err = FL_NONE;
+    fl->err = FL_ERR_NONE;
 
     srand(seed);
     return fl;
@@ -104,7 +104,7 @@ int f_list_add_elem(f_list *fl, char *f_name, struct stat *f_stat) {
     errno = 0;
     fl->f_data[i] = malloc(sizeof(struct f_data_s));
     if (fl->f_data[i] == NULL && errno) {
-        fl->err = FL_MALLOC_ERR;
+        fl->err = FL_ERR_MALLOC;
         return 1;
     }
     
@@ -127,14 +127,14 @@ int _f_list_resize(f_list* fl) {
 
     fl->size_i++;
     if (fl->size_i == _f_list_size_num) {
-        fl->err = FL_ARRAY_OVERFLOW_ERR;
+        fl->err = FL_ERR_ARRAY_OVERFLOW;
         return 1;
     }
 
     errno = 0;
     f_data_cpy = malloc(sizeof(void*) * _f_list_size[fl->size_i]);
     if (f_data_cpy == NULL && errno) {
-        fl->err = FL_MALLOC_ERR;
+        fl->err = FL_ERR_MALLOC;
         return 1;
     }
 
