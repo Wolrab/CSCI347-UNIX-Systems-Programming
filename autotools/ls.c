@@ -3,7 +3,7 @@
 // Quick macro to help in navigating argv
 #define IS_OPT(s) (s[0]=='-')
 
-// Arbitrary whatever buffer (DANGER DANGER HIGH VOLTAGE)
+// A reasonable buffer for reasonable strings
 char buffer[4096];
 const int buffer_size = 4096;
 
@@ -309,7 +309,7 @@ int output_ent_stats(f_list *dir_entries) {
     }
 
     for (i = 0; i < dir_entries->len; i++) {
-        if (get_stat_out(&stat_strings[i], dir_entries->f_data[i]->f_stat, passwd, group)) {
+        if (get_stat_out(stat_strings + i, dir_entries->f_data[i]->f_stat, passwd, group)) {
             if (ls_err_state == LS_ERR_MALLOC)
                 goto cleanup_group;
             if (ls_err_state == LS_ERR_GETLINE)
@@ -320,6 +320,7 @@ int output_ent_stats(f_list *dir_entries) {
             }
         }
     }
+
     // BIG TODO WHY BREAK
     //if (group != NULL) fclose(group);
     //if (passwd != NULL) fclose(passwd);
@@ -328,22 +329,15 @@ int output_ent_stats(f_list *dir_entries) {
     for (i = 0; i < dir_entries->len; i++) {
         printf("%s %s %s %s\n", stat_strings[i].mode, stat_strings[i].nlink, stat_strings[i].usr, stat_strings[i].size);
     }
-    /* Obviously I don't know how to file, and am fucking up so hard that trying to close the files creates undefined behavior
--rw-rw-r-- 1 dingus: 517
--rw-rw-r-- 1 1000 4720
--rw-rw-r-- 1  2891
--rwxrwxr-x 1  35960
--rw-rw-r-- 1  13384
--rw-rw-r-- 1  3491
--rw-rw-r-- 1  195
--rw-r--r-- 1  542
-drwxrwxr-x 2  4096
-drwxr-xr-x 2  4096
-    */
-
 
     // 1. Find the largest string for each non-constant element
     // 2. Print them out in a cool formated manner!
+
+    for (i = 0; i < dir_entries->len; i++) {
+        free(stat_strings[i].usr);
+        //free(stat_strings[i].grp);
+        //free(stat_strings[i].mtim);
+    }
     free(stat_strings);
 
     return 0;
@@ -416,18 +410,18 @@ int get_usr(char **uid_s, uid_t uid, uid_t gid, FILE *passwd) {
     regmatch_t match[2];
     char *line = NULL;
     int err, ret, reg_ret;
-    size_t len;
+    size_t len = 0;
 
     if (passwd == NULL) {
         *uid_s = malloc(11);
-        sprintf(buffer, "%u", uid);
-        memcpy(*uid_s, buffer, strlen(buffer) + 1);
+        sprintf(*uid_s, "%u", uid);
     }
 
     else {
         // TODO more errors jesus
-        lseek(passwd, 0, SEEK_SET);
-        sprintf(pat, "^\\([[:print:]]*\\):[[:print:]]*:%u:%u", uid, gid);
+        rewind(passwd);
+        //sprintf(pat, "^\\([[:print:]]*\\):[[:print:]]*:%u:%u", uid, gid);
+        sprintf(pat, "^\\([[:print:]]*\\):[[:print:]]*:%u:%u", 0, 0);
         reg_ret = regcomp(&reg, pat, 0);
         if (reg_ret) {
             regerror(reg_ret, &reg, buffer, buffer_size);
@@ -444,6 +438,7 @@ int get_usr(char **uid_s, uid_t uid, uid_t gid, FILE *passwd) {
 
             free(line);
             line = NULL;
+            len = 0;
             errno = 0;
             ret = getline(&line, &len, passwd);
         }
@@ -457,11 +452,12 @@ int get_usr(char **uid_s, uid_t uid, uid_t gid, FILE *passwd) {
         }
         else if (ret < 0 && reg_ret == REG_NOMATCH) {
             *uid_s = malloc(11);
-            sprintf(buffer, "%u", uid);
-            memcpy(*uid_s, buffer, strlen(buffer) + 1);
+            sprintf(*uid_s, "%u", uid);
         }
         else if (reg_ret != REG_NOMATCH) {
-            *uid_s = line + match[1].rm_so;
+            // Todo: SFC
+            *uid_s = malloc();
+            line + match[1].rm_so;
             line[match[1].rm_eo] = '\0';
         }
     }
