@@ -14,7 +14,7 @@ static const unsigned _f_list_size[] = {
     0x0000000F, 0x000000FF, 0x000003FF, 0x00000FFF, \
     0x00003FFF, 0x0000FFFF, 0x0003FFFF, 0x000FFFFF, \
     0x003FFFFF, 0x00FFFFFF, 0x03FFFFFF, 0x0FFFFFFF, \
-    0x3FFFFFFF, 0xFFFFFFFF
+    0x3FFFFFFF, 0x7FFFFFFF // Maximum size to be indexed by a signed int because I'm lazy and sort uses the signed bit for some (safe) termination cases
 };
 static const unsigned _f_list_size_num = 14;
 

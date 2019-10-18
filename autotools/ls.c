@@ -4,8 +4,8 @@
 #define IS_OPT(s) (s[0]=='-')
 
 // Arbitrary whatever buffer (DANGER DANGER HIGH VOLTAGE)
-static char buffer[4096];
-static const int buffer_size = 4096;
+char buffer[4096];
+const int buffer_size = 4096;
 
 /* Parses options, and in the spirit of the real ls parses all non-option
  *   arguments as paths to sequentially evaluate. The sequence of paths is 
@@ -46,6 +46,8 @@ int main(int argc, char **argv) {
                 if (ls_err_state != LS_ERR_NONE) {    
                     ls_perror();
                     if (ls_err_state == LS_ERR_MALLOC) break;
+                    ls_err_state = LS_ERR_NONE;
+                    ls_err_path = NULL;
                 }
             }
             path_ind++;
@@ -71,7 +73,8 @@ void ls_perror() {
         sprintf(buffer, "%s: %s", ls_err_prog, ls_err_str[ls_err_state]);
     }
     else if (ls_err_state == LS_ERR_DIR_ACC || ls_err_state == LS_ERR_DIR_READ_ENTRY \
-             || ls_err_state == LS_ERR_LSTAT || ls_err_state == LS_ERR_FOPEN) {
+             || ls_err_state == LS_ERR_LSTAT || ls_err_state == LS_ERR_FOPEN \
+             || ls_err_state == LS_ERR_GETLINE) {
         sprintf(buffer, "%s: ", ls_err_prog);
         sprintf(buffer + strlen(buffer), ls_err_str[ls_err_state], ls_err_path);
     }
@@ -115,6 +118,8 @@ int _ls(char *path, char options) {
             goto err_list_cleanup;
         case LS_ERR_LSTAT:
             goto err_list_cleanup;
+        case LS_ERR_GETLINE:
+            goto err_list_cleanup;
         }
         switch (dir_entries.err) {
         case FL_ERR_NONE:
@@ -133,8 +138,9 @@ int _ls(char *path, char options) {
 
     f_list_sort(&dir_entries);
     if (options & opt_l_mask) {
-        if (output_ent_stats(&dir_entries))
-            // No checking as error is caught in main
+        if (output_ent_stats(&dir_entries)) {
+            // None all are handled within the function
+        }
     }
     else
         output_ent_names(&dir_entries);
@@ -147,7 +153,6 @@ int _ls(char *path, char options) {
     f_list_delete_data(&dir_entries);
     errno = err;
     return ret;
-    
 }
 
 /* Gets flag bits and pushes non-options to the end of argv.
@@ -272,6 +277,7 @@ void output_ent_names(f_list *dir_entries) {
     }
 }
 
+
 int output_ent_stats(f_list *dir_entries) {
     struct stat_out_s *stat_strings;
     int i;
@@ -288,27 +294,57 @@ int output_ent_stats(f_list *dir_entries) {
     if (passwd == NULL) {
         ls_err_state = LS_ERR_FOPEN;
         ls_err_path = "/etc/passwd";
-        goto cleanup_stat_strings;
+        ls_perror();
+        ls_err_state = LS_ERR_NONE;
+        ls_err_path = NULL;
     }
     errno = 0;
     group = fopen("/etc/group", "r");
     if (group == NULL) {
         ls_err_state = LS_ERR_FOPEN;
         ls_err_path = "/etc/group";
-        goto cleanup_passwd;
+        ls_perror();
+        ls_err_state = LS_ERR_NONE;
+        ls_err_path = NULL;
     }
 
     for (i = 0; i < dir_entries->len; i++) {
         if (get_stat_out(&stat_strings[i], dir_entries->f_data[i]->f_stat, passwd, group)) {
             if (ls_err_state == LS_ERR_MALLOC)
                 goto cleanup_group;
-            if (ls_err_state == LS_ERR_REGEX)
+            if (ls_err_state == LS_ERR_GETLINE)
+                goto cleanup_group;
+            if (ls_err_state == LS_ERR_REGEX) {
                 fprintf(stderr, "Could not print stats for '%s', continuing to next element\n", dir_entries->f_data[i]->f_name);
+                ls_err_state = LS_ERR_NONE;
+            }
         }
     }
+    // BIG TODO WHY BREAK
+    //if (group != NULL) fclose(group);
+    //if (passwd != NULL) fclose(passwd);
+
+    // janky test print pray for me
+    for (i = 0; i < dir_entries->len; i++) {
+        printf("%s %s %s %s\n", stat_strings[i].mode, stat_strings[i].nlink, stat_strings[i].usr, stat_strings[i].size);
+    }
+    /* Obviously I don't know how to file, and am fucking up so hard that trying to close the files creates undefined behavior
+-rw-rw-r-- 1 dingus: 517
+-rw-rw-r-- 1 1000 4720
+-rw-rw-r-- 1  2891
+-rwxrwxr-x 1  35960
+-rw-rw-r-- 1  13384
+-rw-rw-r-- 1  3491
+-rw-rw-r-- 1  195
+-rw-r--r-- 1  542
+drwxrwxr-x 2  4096
+drwxr-xr-x 2  4096
+    */
+
 
     // 1. Find the largest string for each non-constant element
     // 2. Print them out in a cool formated manner!
+    free(stat_strings);
 
     return 0;
 
@@ -321,16 +357,19 @@ int output_ent_stats(f_list *dir_entries) {
     return 1;
 }
 
-inline int get_stat_out(struct stat_out_s *stat_out, struct stat *f_stat, FILE *passwd, FILE *group) {
+
+int get_stat_out(struct stat_out_s *stat_out, struct stat *f_stat, FILE *passwd, FILE *group) {
     get_mode(stat_out->mode, f_stat->st_mode);
     get_nlink(stat_out->nlink, f_stat->st_nlink);
-    if (get_usr(stat_out, f_stat->st_uid, f_stat->st_gid, passwd))
+    if (get_usr(&(stat_out->usr), f_stat->st_uid, f_stat->st_gid, passwd))
         return 1;
-
+    //if (get_grp(&(stat_out->grp), f_stat->st_gid, group))
+    //    goto cleanup_usr;
+    get_size(stat_out->size, f_stat->st_size);
+    //if (get_mtim(&(stat_out->mtim), f_stat->st_mtime))
+    //    goto cleanup_grp;
     return 0;
-    
-    cleanup_mtim:
-    free(stat_out->mtim); // Correct? I haven't a faintest clue what fucking library does this
+
     cleanup_grp:
     free(stat_out->grp); // Correct: reference to line from getline which is allocated on the heap
     cleanup_usr:
@@ -338,7 +377,7 @@ inline int get_stat_out(struct stat_out_s *stat_out, struct stat *f_stat, FILE *
     return 1;
 }
 
-inline void get_mode(char *mode_s, mode_t mode) {
+void get_mode(char *mode_s, mode_t mode) {
     if (S_ISREG(mode))
         mode_s[0] = '-';
     else if (S_ISDIR(mode))
@@ -366,68 +405,81 @@ inline void get_mode(char *mode_s, mode_t mode) {
     mode_s[10] = '\0';
 }
 
-inline void get_nlink(char *nlink_s, nlink_t nlink) {
-    sprintf(nlink_s, "%d", nlink);
-    return 0;
+void get_nlink(char *nlink_s, nlink_t nlink) {
+    sprintf(buffer, "%lu", nlink);
+    memcpy(nlink_s, buffer, strlen(buffer) + 1);
 }
 
-inline int get_usr(char *uid_s, uid_t uid, uid_t gid, FILE *passwd) {
-    char pat[34+10+10+1];
+int get_usr(char **uid_s, uid_t uid, uid_t gid, FILE *passwd) {
+    char pat[34+10+10+1]; // pattern, maxmimum digits for unsigned integers and null character
     regex_t reg;
     regmatch_t match[2];
     char *line = NULL;
-    int len, ret, reg_ret;
+    int err, ret, reg_ret;
+    size_t len;
 
-    sprintf(pat, "^\\([[:print:]]*\\):[[:print:]]*:%d:%d", uid, gid);
-    reg_ret = regcomp(&reg, pat, 0);
-    if (reg_ret) {
-        regerror(reg_ret, &reg, buffer, buffer_size);
-        fprintf(stderr, "Regex error: %s\n", buffer);
-        ls_err_state = LS_ERR_REGEX;
-        return 1;
+    if (passwd == NULL) {
+        *uid_s = malloc(11);
+        sprintf(buffer, "%u", uid);
+        memcpy(*uid_s, buffer, strlen(buffer) + 1);
     }
 
-    errno = 0;
-    ret = getline(&line, &len, passwd);
-    while ( !(ret < 0) ) {
-        reg_ret = regexec(&reg, line, 2, match, 0);
-        if (reg_ret != REG_NOMATCH) break;
+    else {
+        // TODO more errors jesus
+        lseek(passwd, 0, SEEK_SET);
+        sprintf(pat, "^\\([[:print:]]*\\):[[:print:]]*:%u:%u", uid, gid);
+        reg_ret = regcomp(&reg, pat, 0);
+        if (reg_ret) {
+            regerror(reg_ret, &reg, buffer, buffer_size);
+            fprintf(stderr, ls_err_str[LS_ERR_REGEX], buffer);
+            ls_err_state = LS_ERR_REGEX;
+            return 1;
+        }
 
-        free(line);
-        line = NULL;
         errno = 0;
         ret = getline(&line, &len, passwd);
-    }
-    if (ret < 0 && errno) {
-        // getline threw an error
-        // since this is something to do with the file, unwind all the way out of the print function
-        //   and let perror be called from main
-        // add a new entry to your LS_ERR too!
-        return 1;
-    }
-    else if (ret < 0 && reg_ret == REG_NOMATCH) {
-        // reached the end of passwd without a match
-        // output uid number instead of name
-    }
-    else if (reg_ret != REG_NOMATCH) {
-        // Nice!
-        // take string from match[1].so to match[1].eo inclusive (so +1 for null byte)
-        uid_s = line + match[1].rm_so;
-        uid_s[match[1].rm_eo + 1] = '\0';
+        while ( !(ret < 0) ) {
+            reg_ret = regexec(&reg, line, 2, match, 0);
+            if (reg_ret != REG_NOMATCH) break;
+
+            free(line);
+            line = NULL;
+            errno = 0;
+            ret = getline(&line, &len, passwd);
+        }
+        if (ret < 0 && errno) {
+            err = errno;
+            free(line);
+            errno = err;
+            ls_err_state = LS_ERR_GETLINE;
+            ls_err_path = "/etc/passwd";
+            return 1;
+        }
+        else if (ret < 0 && reg_ret == REG_NOMATCH) {
+            *uid_s = malloc(11);
+            sprintf(buffer, "%u", uid);
+            memcpy(*uid_s, buffer, strlen(buffer) + 1);
+        }
+        else if (reg_ret != REG_NOMATCH) {
+            *uid_s = line + match[1].rm_so;
+            line[match[1].rm_eo] = '\0';
+        }
     }
     return 0;
 }
 
-inline int get_grp(char *gid_s, uid_t gid, FILE *group) {
+int get_grp(char **gid_s, uid_t gid, FILE *group) {
 
 }
 
-// Use the same 4 byte trick???
-inline int get_size(char *size_s, off_t size) {
+void get_size(char *size_s, off_t size) {
+    sprintf(buffer, "%ld", size);
+    memcpy(size_s, buffer, strlen(buffer) + 1);
 
 }
 
 // Jesus I still gotta do this
-inline int get_mtim(char *mtim_s, struct timespec *mtim) {
-
+int get_mtim(char **mtim_s, struct timespec *mtim) {
+    time_t time = (time_t)mtim->tv_sec;
+    
 }

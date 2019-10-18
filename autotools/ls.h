@@ -26,25 +26,26 @@
  */
 
 // All the options recognized by the program
-static const char const* opt_string = "al";
+const char *const opt_string = "al";
 
 // The bitmask for each of the options
 // LIMITED TO 7 OPTIONS WITH CHAR as -1 is reserved for an invalid option error
-static const char opt_a_mask = 0x01;
-static const char opt_l_mask = 0x02;
+const char opt_a_mask = 0x01;
+const char opt_l_mask = 0x02;
 
 typedef enum ls_err ls_err;
-static enum ls_err {
+enum ls_err {
     LS_ERR_NONE = 0,
     LS_ERR_MALLOC = 1,          // errno: meaningful
     LS_ERR_DIR_ACC = 2,         // errno: meaningful
     LS_ERR_DIR_READ_ENTRY = 3,  // errno: meaningful
     LS_ERR_LSTAT = 4,           // errno: meaningful
     LS_ERR_FOPEN = 5,           // errno: meaningful
-    LS_ERR_REGEX = 6            // errno: not meaningful
+    LS_ERR_REGEX = 6,           // errno: not meaningful
+    LS_ERR_GETLINE = 7          // errno: meaningful
 } ls_err_state = LS_ERR_NONE;
-static const char *ls_err_prog;
-static const char *ls_err_path;
+const char *ls_err_prog;
+const char *ls_err_path;
 
 // TODO: Use to store error values from ahead in the chain
 struct ls_err_state_s {
@@ -53,21 +54,23 @@ struct ls_err_state_s {
     const char *err_path; 
 };
 
-static const char *const ls_err_str[] = {
+const char *const ls_err_str[] = {
     "no error",
     "malloc",
     "cannot open dir '%s'",
     "cannot read an entry in directory '%s'",
-    "cannot stat '%s'"
-    "cannot open file '%s'"
+    "cannot stat '%s'",
+    "cannot open file '%s'",
+    "regex error: %s",
+    "error reading from file '%s'"
 };
 
 struct stat_out_s {
-    char mode[11];
-    char *nlink[10]; // Largest value for a 4 bit signed or unsigned integer
+    char mode[11];     // Unchanging string pattern
+    char nlink[21];    // Most digits a long unsigned integer (aka nlink_t) can have
     char *usr;
     char *grp;
-    char *size;
+    char size[21];     // Most digits a long integer (aka off_t) can have
     char *mtim;
 };
 
@@ -92,14 +95,13 @@ void output_ent_names(f_list *dir_entries);
 // Output the file names and statistics of the f_list seperated by newlines
 int output_ent_stats(f_list *dir_entries);
 
-// If the compiler is epic this will all expand out inside output_ent_stats and the function will
-//   secretly be like 100+ lines long
-inline int get_stat_out(struct stat_out_s *stat_out, struct stat *f_stat, FILE *passwd, FILE *group);
-inline void get_mode(char *mode_s, mode_t mode);
-inline void get_nlink(char *nlink_s, nlink_t nlink);
-inline int get_usr(char *uid_s, uid_t uid, uid_t gid, FILE *passwd);
-inline int get_grp(char *gid_s, uid_t gid, FILE *group);
-inline int get_size(char *size_s, off_t size);
-inline int get_mtim(char *mtim_s, struct timespec *mtim);
+// Oh my god
+int get_stat_out(struct stat_out_s *stat_out, struct stat *f_stat, FILE *passwd, FILE *group);
+void get_mode(char *mode_s, mode_t mode);
+void get_nlink(char *nlink_s, nlink_t nlink);
+int get_usr(char **uid_s, uid_t uid, uid_t gid, FILE *passwd);
+int get_grp(char **gid_s, uid_t gid, FILE *group);
+void get_size(char *size_s, off_t size);
+int get_mtim(char **mtim_s, struct timespec *mtim);
 
 #endif /* __LS_H */
