@@ -41,7 +41,7 @@ enum ls_err {
     LS_ERR_DIR_ACC = 2,         // errno: meaningful
     LS_ERR_DIR_READ_ENTRY = 3,  // errno: meaningful
     LS_ERR_LSTAT = 4,           // errno: meaningful
-    LS_ERR_FOPEN = 5,           // errno: meaningful
+    LS_ERR_LINK_OPEN = 5,       // errno: meaningful
 } ls_err_state = LS_ERR_NONE;
 const char *ls_err_prog;
 const char *ls_err_path;
@@ -59,7 +59,7 @@ const char *const ls_err_str[] = {
     "cannot open dir '%s'",
     "cannot read an entry in directory '%s'",
     "cannot stat '%s'",
-    "cannot open file '%s'"
+    "cannot open link '%s'"
 };
 
 struct stat_out_s {

@@ -73,7 +73,7 @@ void ls_perror() {
         sprintf(buffer, "%s: %s", ls_err_prog, ls_err_str[ls_err_state]);
     }
     else if (ls_err_state == LS_ERR_DIR_ACC || ls_err_state == LS_ERR_DIR_READ_ENTRY \
-             || ls_err_state == LS_ERR_LSTAT || ls_err_state == LS_ERR_FOPEN) {
+             || ls_err_state == LS_ERR_LSTAT || ls_err_state == LS_ERR_LINK_OPEN) {
         sprintf(buffer, "%s: ", ls_err_prog);
         sprintf(buffer + strlen(buffer), ls_err_str[ls_err_state], ls_err_path);
     }
@@ -215,8 +215,8 @@ int get_ent_names(DIR *d, f_list *dir_entries, const char *path, const char opti
 int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char options) {
     struct dirent *ent;
     struct stat *ent_stat;
-    char path_buf[PATH_MAX];
-    int path_len = strlen(path), err;
+    char path_buf[PATH_MAX], *link_buf;
+    int path_len = strlen(path);
 
     memcpy(path_buf, path, path_len + 1);
     if (path_buf[path_len-1] != '/') {
@@ -242,19 +242,31 @@ int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char opti
 
         memcpy(path_buf + path_len, ent->d_name, strlen(ent->d_name) + 1);
         errno = 0;
-        //if (lstat(path_buf, ent_stat) < 0) {
-        if (stat(path_buf, ent_stat) < 0) {
-            err = errno;
+        if (lstat(path_buf, ent_stat) < 0) {
             free(ent_stat);
-            errno = err;
             ls_err_state = LS_ERR_LSTAT;
-            ls_err_path = path_buf; // File path
+            ls_err_path = path_buf;
             return 1;
         }
 
         if (S_ISLNK(ent_stat->st_mode)) {
-            // TODO: Fill link thingy
-            // MEMORY MUST BE HANDLED
+            errno = 0;
+            link_buf = malloc(ent_stat->st_size);
+            if (link_buf == NULL && errno) {
+                free(ent_stat);
+                ls_err_state = LS_ERR_MALLOC;
+                return 1;
+            }
+            if (readlink(path_buf, link_buf, PATH_MAX) < 0) {
+                free(ent_stat);
+                ls_err_state = LS_ERR_LINK_OPEN;
+                ls_err_path = path_buf;
+                return 1;
+            }
+            if (f_list_add_elem(dir_entries, ent->d_name, ent_stat, link_buf)) {
+                if (dir_entries->err != FL_ERR_NONE)
+                    return 1;
+            }
         }
         else {
             if (f_list_add_elem(dir_entries, ent->d_name, ent_stat, NULL)) {
@@ -268,7 +280,7 @@ int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char opti
     }
     if (errno != 0) {
         ls_err_state = LS_ERR_DIR_READ_ENTRY;
-        ls_err_path = path; // Directory path
+        ls_err_path = path;
         return 1;
     }
     return 0;
