@@ -73,8 +73,7 @@ void ls_perror() {
         sprintf(buffer, "%s: %s", ls_err_prog, ls_err_str[ls_err_state]);
     }
     else if (ls_err_state == LS_ERR_DIR_ACC || ls_err_state == LS_ERR_DIR_READ_ENTRY \
-             || ls_err_state == LS_ERR_LSTAT || ls_err_state == LS_ERR_FOPEN \
-             || ls_err_state == LS_ERR_GETLINE) {
+             || ls_err_state == LS_ERR_LSTAT || ls_err_state == LS_ERR_FOPEN) {
         sprintf(buffer, "%s: ", ls_err_prog);
         sprintf(buffer + strlen(buffer), ls_err_str[ls_err_state], ls_err_path);
     }
@@ -117,8 +116,6 @@ int _ls(char *path, char options) {
         case LS_ERR_DIR_READ_ENTRY:
             goto err_list_cleanup;
         case LS_ERR_LSTAT:
-            goto err_list_cleanup;
-        case LS_ERR_GETLINE:
             goto err_list_cleanup;
         }
         switch (dir_entries.err) {
@@ -195,7 +192,7 @@ int get_ent_names(DIR *d, f_list *dir_entries, const char *path, const char opti
             continue;
         }
 
-        if (f_list_add_elem(dir_entries, ent->d_name, NULL)) {
+        if (f_list_add_elem(dir_entries, ent->d_name, NULL, NULL)) {
             if (dir_entries->err != FL_ERR_NONE)
                 return 1;
         }
@@ -245,7 +242,8 @@ int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char opti
 
         memcpy(path_buf + path_len, ent->d_name, strlen(ent->d_name) + 1);
         errno = 0;
-        if (lstat(path_buf, ent_stat) < 0) {
+        //if (lstat(path_buf, ent_stat) < 0) {
+        if (stat(path_buf, ent_stat) < 0) {
             err = errno;
             free(ent_stat);
             errno = err;
@@ -254,9 +252,15 @@ int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char opti
             return 1;
         }
 
-        if (f_list_add_elem(dir_entries, ent->d_name, ent_stat)) {
-            if (dir_entries->err != FL_ERR_NONE)
-                return 1;
+        if (S_ISLNK(ent_stat->st_mode)) {
+            // TODO: Fill link thingy
+            // MEMORY MUST BE HANDLED
+        }
+        else {
+            if (f_list_add_elem(dir_entries, ent->d_name, ent_stat, NULL)) {
+                if (dir_entries->err != FL_ERR_NONE)
+                    return 1;
+            }
         }
 
         errno = 0;
@@ -277,97 +281,71 @@ void output_ent_names(f_list *dir_entries) {
     }
 }
 
-
 int output_ent_stats(f_list *dir_entries) {
     struct stat_out_s *stat_strings;
-    int i;
-    FILE *passwd, *group;
+    int i, j, ret = 0;
+    unsigned int max_char_usr = 0, max_char_grp = 0, max_link_dig = 0, max_size_dig = 0;
 
     errno = 0;
-    stat_strings = malloc(sizeof(struct stat_out_s) * (dir_entries->len-1));
+    stat_strings = malloc(sizeof(struct stat_out_s) * (dir_entries->len));
     if (stat_strings == NULL && errno) {
         ls_err_state = LS_ERR_MALLOC;
         return 1;
     }
-    errno = 0;
-    passwd = fopen("/etc/passwd", "r");
-    if (passwd == NULL) {
-        ls_err_state = LS_ERR_FOPEN;
-        ls_err_path = "/etc/passwd";
-        ls_perror();
-        ls_err_state = LS_ERR_NONE;
-        ls_err_path = NULL;
-    }
-    errno = 0;
-    group = fopen("/etc/group", "r");
-    if (group == NULL) {
-        ls_err_state = LS_ERR_FOPEN;
-        ls_err_path = "/etc/group";
-        ls_perror();
-        ls_err_state = LS_ERR_NONE;
-        ls_err_path = NULL;
-    }
 
     for (i = 0; i < dir_entries->len; i++) {
-        if (get_stat_out(stat_strings + i, dir_entries->f_data[i]->f_stat, passwd, group)) {
+        if (get_stat_out(stat_strings + i, dir_entries->f_data[i]->f_stat)) {
             if (ls_err_state == LS_ERR_MALLOC)
-                goto cleanup_group;
-            if (ls_err_state == LS_ERR_GETLINE)
-                goto cleanup_group;
-            if (ls_err_state == LS_ERR_REGEX) {
-                fprintf(stderr, "Could not print stats for '%s', continuing to next element\n", dir_entries->f_data[i]->f_name);
-                ls_err_state = LS_ERR_NONE;
-            }
+                goto cleanup_inloop_stat_strings;
         }
+        ret = strlen(stat_strings[i].usr);
+        if (ret > max_char_usr) max_char_usr = ret;
+        ret = strlen(stat_strings[i].grp);
+        if (ret > max_char_grp) max_char_grp = ret;
+        ret = get_digits(dir_entries->f_data[i]->f_stat->st_nlink);
+        if (ret > max_link_dig) max_link_dig = ret;
+        ret = get_digits(dir_entries->f_data[i]->f_stat->st_size);
+        if (ret > max_size_dig) max_size_dig = ret;
     }
-
-    // BIG TODO WHY BREAK
-    //if (group != NULL) fclose(group);
-    //if (passwd != NULL) fclose(passwd);
-
-    // janky test print pray for me
+    
     for (i = 0; i < dir_entries->len; i++) {
-        printf("%s %s %s %s\n", stat_strings[i].mode, stat_strings[i].nlink, stat_strings[i].usr, stat_strings[i].size);
+        if (dir_entries->f_data[i]->link_path == NULL)
+            printf("%s %*lu %*s %*s %*ld %s %s\n", stat_strings[i].mode, max_link_dig, dir_entries->f_data[i]->f_stat->st_nlink, \
+                max_char_usr, stat_strings[i].usr, max_char_grp, stat_strings[i].grp, max_size_dig, dir_entries->f_data[i]->f_stat->st_size, \
+                stat_strings[i].mtim, dir_entries->f_data[i]->f_name);
+        else
+            printf("%s %*lu %*s %*s %*ld %s %s -> %s\n", stat_strings[i].mode, max_link_dig, dir_entries->f_data[i]->f_stat->st_nlink, \
+                    max_char_usr, stat_strings[i].usr, max_char_grp, stat_strings[i].grp, max_size_dig, dir_entries->f_data[i]->f_stat->st_size, \
+                    stat_strings[i].mtim, dir_entries->f_data[i]->f_name, dir_entries->f_data[i]->link_path);
     }
-
-    // 1. Find the largest string for each non-constant element
-    // 2. Print them out in a cool formated manner!
-
+    
     for (i = 0; i < dir_entries->len; i++) {
         free(stat_strings[i].usr);
-        //free(stat_strings[i].grp);
-        //free(stat_strings[i].mtim);
+        free(stat_strings[i].grp);
     }
     free(stat_strings);
-
     return 0;
 
-    cleanup_group:
-    fclose(group);
-    cleanup_passwd:
-    fclose(passwd);
-    cleanup_stat_strings:
+    cleanup_inloop_stat_strings:
+    for (j = 0; j < i; j++) {
+        free(stat_strings[j].usr);
+        free(stat_strings[i].grp);
+    }
     free(stat_strings);
     return 1;
 }
 
-
-int get_stat_out(struct stat_out_s *stat_out, struct stat *f_stat, FILE *passwd, FILE *group) {
+int get_stat_out(struct stat_out_s *stat_out, struct stat *f_stat) {
     get_mode(stat_out->mode, f_stat->st_mode);
-    get_nlink(stat_out->nlink, f_stat->st_nlink);
-    if (get_usr(&(stat_out->usr), f_stat->st_uid, f_stat->st_gid, passwd))
+    if (get_usr(&(stat_out->usr), f_stat->st_uid))
         return 1;
-    //if (get_grp(&(stat_out->grp), f_stat->st_gid, group))
-    //    goto cleanup_usr;
-    get_size(stat_out->size, f_stat->st_size);
-    //if (get_mtim(&(stat_out->mtim), f_stat->st_mtime))
-    //    goto cleanup_grp;
+    if (get_grp(&(stat_out->grp), f_stat->st_gid))
+        goto cleanup_usr;
+    get_mtim(&(stat_out->mtim), &(f_stat->st_mtime));
     return 0;
 
-    cleanup_grp:
-    free(stat_out->grp); // Correct: reference to line from getline which is allocated on the heap
     cleanup_usr:
-    free(stat_out->usr); // Correct: reference to line from getline which is allocated on the heap
+    free(stat_out->usr);
     return 1;
 }
 
@@ -399,83 +377,81 @@ void get_mode(char *mode_s, mode_t mode) {
     mode_s[10] = '\0';
 }
 
-void get_nlink(char *nlink_s, nlink_t nlink) {
-    sprintf(buffer, "%lu", nlink);
-    memcpy(nlink_s, buffer, strlen(buffer) + 1);
-}
-
-int get_usr(char **uid_s, uid_t uid, uid_t gid, FILE *passwd) {
-    char pat[34+10+10+1]; // pattern, maxmimum digits for unsigned integers and null character
-    regex_t reg;
-    regmatch_t match[2];
-    char *line = NULL;
-    int err, ret, reg_ret;
-    size_t len = 0;
-
-    if (passwd == NULL) {
-        *uid_s = malloc(11);
-        sprintf(*uid_s, "%u", uid);
+int get_usr(char **usr, uid_t uid) {
+    struct passwd *passwd_ent;
+    errno = 0;
+    passwd_ent = getpwuid(uid);
+    if (errno) {
+        perror("getpwuid");
     }
-
-    else {
-        // TODO more errors jesus
-        rewind(passwd);
-        //sprintf(pat, "^\\([[:print:]]*\\):[[:print:]]*:%u:%u", uid, gid);
-        sprintf(pat, "^\\([[:print:]]*\\):[[:print:]]*:%u:%u", 0, 0);
-        reg_ret = regcomp(&reg, pat, 0);
-        if (reg_ret) {
-            regerror(reg_ret, &reg, buffer, buffer_size);
-            fprintf(stderr, ls_err_str[LS_ERR_REGEX], buffer);
-            ls_err_state = LS_ERR_REGEX;
-            return 1;
-        }
-
+    if (passwd_ent == NULL) {
         errno = 0;
-        ret = getline(&line, &len, passwd);
-        while ( !(ret < 0) ) {
-            reg_ret = regexec(&reg, line, 2, match, 0);
-            if (reg_ret != REG_NOMATCH) break;
-
-            free(line);
-            line = NULL;
-            len = 0;
-            errno = 0;
-            ret = getline(&line, &len, passwd);
-        }
-        if (ret < 0 && errno) {
-            err = errno;
-            free(line);
-            errno = err;
-            ls_err_state = LS_ERR_GETLINE;
-            ls_err_path = "/etc/passwd";
+        *usr = malloc(11);
+        if (*usr == NULL) {
+            ls_err_state = LS_ERR_MALLOC;
             return 1;
         }
-        else if (ret < 0 && reg_ret == REG_NOMATCH) {
-            *uid_s = malloc(11);
-            sprintf(*uid_s, "%u", uid);
+        sprintf(*usr, "%u", uid);
+    }
+    else {
+        errno = 0;
+        *usr = malloc(strlen(passwd_ent->pw_name) + 1);
+        if (*usr == NULL && errno) {
+            ls_err_state = LS_ERR_MALLOC;
+            return 1;
         }
-        else if (reg_ret != REG_NOMATCH) {
-            // Todo: SFC
-            *uid_s = malloc();
-            line + match[1].rm_so;
-            line[match[1].rm_eo] = '\0';
-        }
+        memcpy(*usr, passwd_ent->pw_name, strlen(passwd_ent->pw_name) + 1);
     }
     return 0;
 }
 
-int get_grp(char **gid_s, uid_t gid, FILE *group) {
-
+int get_grp(char **grp, uid_t gid) {
+    struct group *group_ent;
+    errno = 0;
+    group_ent = getgrgid(gid);
+    if (errno) {
+        perror("getgrgid");
+    }
+    if (group_ent == NULL) {
+        errno = 0;
+        *grp = malloc(11);
+        if (*grp == NULL) {
+            ls_err_state = LS_ERR_MALLOC;
+            return 1;
+        }
+        sprintf(*grp, "%u", gid);
+    }
+    else {
+        *grp = malloc(strlen(group_ent->gr_name) + 1);
+        if (*grp == NULL && errno) {
+            ls_err_state = LS_ERR_MALLOC;
+            return 1;
+        }
+        memcpy(*grp, group_ent->gr_name, strlen(group_ent->gr_name) + 1);
+    }
+    return 0;
 }
 
-void get_size(char *size_s, off_t size) {
-    sprintf(buffer, "%ld", size);
-    memcpy(size_s, buffer, strlen(buffer) + 1);
-
+int get_mtim(char **mtim_s, time_t *mtim) {
+    struct tm *t = localtime(mtim);
+    errno = 0;
+    if (strftime(buffer, buffer_size, "%b %e %H:%M %Y", t) == 0 && errno) {
+        memset(buffer, '?', 17);
+        buffer[17] = '\0';
+    }
+    *mtim_s = malloc(strlen(buffer) + 1);
+    memcpy(*mtim_s, buffer, strlen(buffer) + 1);
+    return 0;
 }
 
-// Jesus I still gotta do this
-int get_mtim(char **mtim_s, struct timespec *mtim) {
-    time_t time = (time_t)mtim->tv_sec;
-    
+unsigned int get_digits(unsigned long n) {
+    unsigned int dig = 1;
+    unsigned long place = 10;
+    while (n % place != n) {
+        dig++;
+        if (place * 10 < place)
+            break;
+        place *= 10;
+    }
+    return dig;
 }

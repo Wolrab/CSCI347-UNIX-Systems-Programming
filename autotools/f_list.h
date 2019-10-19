@@ -41,6 +41,7 @@ struct f_data_s {
     char f_name[NAME_MAX]; // Ensures memory is managed appropriately, no finickey bs
     struct key_s key;
     struct stat *f_stat;
+    char *link_path;
 };
 
 typedef struct f_list_s f_list;
@@ -64,7 +65,7 @@ f_list* f_list_init(f_list *fl);
 // Always use to initialize a new f_list if you care about the seed (for quicksort obvi)
 f_list* f_list_init_seed(f_list *fl, unsigned int seed);
 // Copies values of both f_name and f_stat!
-int f_list_add_elem(f_list *fl, char *f_name, struct stat *f_stat);
+int f_list_add_elem(f_list *fl, char *f_name, struct stat *f_stat, char *link_path);
 // Called by f_list_add_elem, the f_list_size array determines each increment in the 
 //   size of the array each time it's resized.
 int _f_list_resize(f_list* fl);

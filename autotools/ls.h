@@ -8,7 +8,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
-#include <regex.h>
+#include <pwd.h>
+#include <grp.h>
 #include "f_list.h"
 
 /* The writable globals for ls are...
@@ -41,8 +42,6 @@ enum ls_err {
     LS_ERR_DIR_READ_ENTRY = 3,  // errno: meaningful
     LS_ERR_LSTAT = 4,           // errno: meaningful
     LS_ERR_FOPEN = 5,           // errno: meaningful
-    LS_ERR_REGEX = 6,           // errno: not meaningful
-    LS_ERR_GETLINE = 7          // errno: meaningful
 } ls_err_state = LS_ERR_NONE;
 const char *ls_err_prog;
 const char *ls_err_path;
@@ -60,17 +59,13 @@ const char *const ls_err_str[] = {
     "cannot open dir '%s'",
     "cannot read an entry in directory '%s'",
     "cannot stat '%s'",
-    "cannot open file '%s'",
-    "regex error: %s",
-    "error reading from file '%s'"
+    "cannot open file '%s'"
 };
 
 struct stat_out_s {
     char mode[11];     // Unchanging string pattern
-    char nlink[21];    // Most digits a long unsigned integer (aka nlink_t) can have
     char *usr;
     char *grp;
-    char size[21];     // Most digits a long integer (aka off_t) can have
     char *mtim;
 };
 
@@ -95,13 +90,12 @@ void output_ent_names(f_list *dir_entries);
 // Output the file names and statistics of the f_list seperated by newlines
 int output_ent_stats(f_list *dir_entries);
 
-// Oh my god
-int get_stat_out(struct stat_out_s *stat_out, struct stat *f_stat, FILE *passwd, FILE *group);
+// Functionality for output_ent_stats
+int get_stat_out(struct stat_out_s *stat_out, struct stat *f_stat);
 void get_mode(char *mode_s, mode_t mode);
-void get_nlink(char *nlink_s, nlink_t nlink);
-int get_usr(char **uid_s, uid_t uid, uid_t gid, FILE *passwd);
-int get_grp(char **gid_s, uid_t gid, FILE *group);
-void get_size(char *size_s, off_t size);
-int get_mtim(char **mtim_s, struct timespec *mtim);
+int get_usr(char **usr, uid_t uid);
+int get_grp(char **grp, uid_t gid);
+int get_mtim(char **mtim_s, time_t *mtim);
+unsigned int get_digits(unsigned long n);
 
 #endif /* __LS_H */

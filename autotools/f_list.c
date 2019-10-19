@@ -91,7 +91,7 @@ f_list* f_list_init_seed(f_list *fl, unsigned int seed) {
 /* Adds a new element to the f_list
  * Returns: 0 on success, 1 on error
  */
-int f_list_add_elem(f_list *fl, char *f_name, struct stat *f_stat) {
+int f_list_add_elem(f_list *fl, char *f_name, struct stat *f_stat, char *link_path) {
     int i, ret;
 
     assert(f_name != NULL);
@@ -112,6 +112,7 @@ int f_list_add_elem(f_list *fl, char *f_name, struct stat *f_stat) {
     if (ret) return 1;
     memcpy(fl->f_data[i]->f_name, f_name, strlen(f_name)+1);
     fl->f_data[i]->f_stat = f_stat;
+    fl->f_data[i]->link_path = link_path;
 
     fl->len++;
 
