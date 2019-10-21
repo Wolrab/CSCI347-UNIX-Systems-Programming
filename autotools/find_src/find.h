@@ -7,23 +7,12 @@
 #include <fts.h>
 #include <stdio.h>
 #include <time.h>
-#include "find_list.h"
-#include "find_expr.h"
+#include "list.h"
+#include "expression_defs.h"
+#include "expression.h"
 
 // Iterates through the file tree
-int find(FTS *file_tree, char **expression, int expression_len);
-
-// Checks if an expression is valid
-expr_err validate_expression(char **expression, int expression_len);
-// Evaluates a given expression
-bool evaluate_expression(char **expression, int expression_len);
-
-// Expression primaries
-bool prim_cmin(FTSENT *ent, int n);
-bool prim_cnewer(FTSENT *ent, char *file);
-bool prim_ctime(FTSENT *ent, int n);
-bool prim_mmin(FTSENT *ent, int n);
-bool prim_mtime(FTSENT *ent, int n);
-bool prim_type(FTSENT *ent, char t);
+int find(char **file, expression_t *expression);
+void expression_perror(expr_err err, char **argv, char **expr_args);
 
 #endif /* __FIND_H */

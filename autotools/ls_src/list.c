@@ -80,7 +80,6 @@ list_err list_add_ordered(list *l, char *f_name, struct stat *f_stat) {
     else {
         n->next = curr->next;
         curr->next = n;
-        ret = LIST_ERR_NONE;
     }
     return ret;
 }
