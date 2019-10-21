@@ -1,4 +1,4 @@
-#include "ls_list.h"
+#include "list.h"
 
 /**
  * Implementation of an increasing-order linked list for holding file names 

@@ -1,7 +1,7 @@
-bin_PROGRAMS=ls find
-ls_SOURCES=ls/ls.c ls/ls.h ls/list.c ls/list.h
-find_SOURCES=find/find.c find/find.h find/expr.c find/expr.h find/list.c \
-             find/list.h
+bin_PROGRAMS=ls #find
+ls_SOURCES=ls_src/ls.c ls_src/ls.h ls_src/list.c ls_src/list.h
+#find_SOURCES=find/find.c find/find.h find/expr.c find/expr.h find/list.c \
+#             find/list.h
 
 test_scripts=tests/ls_order  \
              tests/ls_exists \

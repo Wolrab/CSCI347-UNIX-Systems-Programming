@@ -1,6 +1,5 @@
 AC_INIT([barlowc2],[1.1],[barlowc2@wwu.edu])
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
-
+AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 
 # Programs
 #
