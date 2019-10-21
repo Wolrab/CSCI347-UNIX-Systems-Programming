@@ -7,95 +7,130 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <stdio.h>
 #include <time.h>
 #include <pwd.h>
 #include <grp.h>
-#include "f_list.h"
+#include "ls_list.h"
 
-/* The writable globals for ls are...
- * ls_err ls_err_state
- * static const char* ls_err_prog
- * static const char* ls_err_path
- * 
- * The proper use of these variables must be guarenteed by a VERY strict error-
- *   return path. This is necessary anyways to ensure proper resource deallocation
- *   and errno preservation.
- * 
- * In the future I will create a proper struct that stores all this information so 
- *   that when a function returns out, all the necessary information will be neatly 
- *   contained within recieving the function  
- */
+// Global buffers. Static to increase safety.
+static char str_buffer[4096];
+static const int str_buffer_size = 4096;
+static char path_buffer[PATH_MAX];
+static const int path_buffer_size = PATH_MAX;
 
-// All the options recognized by the program
-const char *const opt_string = "al";
+#define OPTION_STRING "al"
 
-// The bitmask for each of the options
-// LIMITED TO 7 OPTIONS WITH CHAR as -1 is reserved for an invalid option error
-const char opt_a_mask = 0x01;
-const char opt_l_mask = 0x02;
+// Option flags
+static bool option_a = false;
+static bool option_l = false;
 
+// Error definitions that index into corresponding error strings and whether
+//   a meaningful errno value is set by the error.
 typedef enum ls_err ls_err;
 enum ls_err {
     LS_ERR_NONE = 0,
-    LS_ERR_MALLOC = 1,          // errno: meaningful
-    LS_ERR_DIR_ACC = 2,         // errno: meaningful
-    LS_ERR_DIR_READ_ENTRY = 3,  // errno: meaningful
-    LS_ERR_LSTAT = 4,           // errno: meaningful
-    LS_ERR_LINK_OPEN = 5,       // errno: meaningful
-} ls_err_state = LS_ERR_NONE;
-const char *ls_err_prog;
-const char *ls_err_path;
-
-// TODO: Use to store error values from ahead in the chain
-struct ls_err_state_s {
-    ls_err err_state;
-    const char *err_prog;
-    const char *err_path; 
+    LS_ERR_MALLOC = 1,
+    LS_ERR_DIR_OPEN = 2,
+    LS_ERR_DIR_READ_ENTRY = 3,
+    LS_ERR_STAT = 4,
+    LS_ERR_DUP_ENTRY = 5
 };
-
 const char *const ls_err_str[] = {
-    "no error",
-    "malloc",
+    "no error%s",
+    "malloc%s",
     "cannot open dir '%s'",
     "cannot read an entry in directory '%s'",
     "cannot stat '%s'",
-    "cannot open link '%s'"
+    "duplicate file '%s' found: program data has most likely been corrupted"
+};
+const bool ls_err_errno[] = {
+    false,
+    true,
+    true,
+    true,
+    true,
+    false
 };
 
+// Global error variables, static because no other compilation unit should
+//   be able to change these values.
+static ls_err ls_err_state;
+static char ls_err_path[PATH_MAX];
+static const int ls_err_path_size = PATH_MAX;
+
+// Stores string representations of stat data.
 struct stat_out_s {
-    char mode[11];     // Unchanging string pattern
-    char *usr;
-    char *grp;
-    char *mtim;
+    char mode_str[11];
+    char *usr_str;
+    char *grp_str;
+    char *mtim_str;
+    char *f_name;
 };
 
-// Standardized method for printing error with meaningfull errno's
-void ls_perror();
+// List all the directory entries of path. Outputs the result to standard out.
+int ls(char *path);
 
-// Actual ls functionality
-int _ls(char *path, char options);
+// Stores the entries of the directory specified by path into dir_entries.
+int get_entries(const char *path, list *dir_entries);
 
-// Returns a maskable char with all the enabled options
-char get_options(int argc, char **argv);
+// Reads all entries of the directory stream d and adds them to dir_entries.
+//   Options modify what information is stored.
+int read_dir_stream(DIR *d, const char *path, list *dir_entries);
 
-// Uses _add_entry to fill the f_list with the name of all the entries in d
-int get_ent_names(DIR *d, f_list *dir_entries, const char *path, const char options);
+// Stats the file f_name located in the directory referenced by path.
+// The stat structure returned must be handled by the user.
+struct stat* get_stat(const char *f_name, const char *path);
 
-// Uses _add_entry to fill the f_list with all the names and stats of entries in d
-int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char options);
+// Outputs the file names of dir_entries seperate by newlines to stdout.
+void output_ent_names(list *dir_entries);
 
-// Outputs the file names of the f_list seperate by newlines
-void output_ent_names(f_list *dir_entries);
+// Output the file names and stat info of dir_entries seperated by newlines to
+//   stdout.
+int output_ent_stats(list *dir_entries);
 
-// Output the file names and statistics of the f_list seperated by newlines
-int output_ent_stats(f_list *dir_entries);
+// Fills the entries of stat_out with the information in data.
+int fill_stat_out(struct stat_out_s *stat_out, struct data_s *data);
 
-// Functionality for output_ent_stats
-int get_stat_out(struct stat_out_s *stat_out, struct stat *f_stat);
-void get_mode(char *mode_s, mode_t mode);
-int get_usr(char **usr, uid_t uid);
-int get_grp(char **grp, uid_t gid);
-int get_mtim(char **mtim_s, time_t *mtim);
-unsigned int get_digits(unsigned long n);
+// Helper function for fill_stat_out
+// Fills mode_str with a fixed-size character representation of mode.
+void get_mode_str(char *mode_str, mode_t mode);
+
+// Helper function for fill_stat_out
+// Allocates and sets usr_str to either point to a user name associated with 
+//   uid, or to a string representation of uid if none is found.
+// If errors, guarentees value pointed to by usr_str to be NULL
+int get_usr_str(char **usr_str, uid_t uid);
+
+// Helper function for fill_stat_out
+// Allocates and sets grp_str to either point to a group name associated with 
+//   gid, or to a string representation of gid if none is found.
+// If errors, guarentees value pointed to by grp_str to be NULL
+int get_grp_str(char **grp_str, gid_t gid);
+
+// Helper function for fill_stat_out
+// Allocates and sets mtim_str to be the formatted date representation of mtim,
+//   or a filler string if none is found.
+// If errors, guarentees value pointed to by mtim_str to be NULL
+int get_mtim_str(char **mtim_str, time_t mtim);
+
+// Appropriately frees stat_out elements, leaving the struct itself.
+void free_stat_out(struct stat_out_s *stat_out);
+
+// Sets the option flags. Expects raw argc and argv from main.
+int get_options(const int argc, char **argv);
+
+// Sets the ls_err values given the current error and the path if relevant, 
+//   NULL if it's not.
+void set_ls_err(ls_err err, const char *path);
+
+// Clears current errors, necessary before any other errors can be triggered.
+void clear_ls_err();
+
+// Prints ls_err errors using the name of the program with reference to the
+//   current set error flags and information.
+// Prints the errno value through perror if it has meaning in the context of
+//   the current error.
+void ls_perror(char *program);
 
 #endif /* __LS_H */

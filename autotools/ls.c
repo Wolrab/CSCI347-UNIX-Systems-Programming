@@ -1,381 +1,257 @@
 #include "ls.h"
 
-// Quick macro to help in navigating argv
-#define IS_OPT(s) (s[0]=='-')
-
-// A reasonable buffer for reasonable strings
-char buffer[4096];
-const int buffer_size = 4096;
-
-/* Parses options, and in the spirit of the real ls parses all non-option
- *   arguments as paths to sequentially evaluate. The sequence of paths is 
- *   evaluated with FIFO order.
+/** 
+ * The ls program. Prints all entries of current directory to stdout and exits.
+ *   Output style is modified by options passed into the program.
  * Returns: 0 on success, 1 on error.
  */
 int main(int argc, char **argv) {
-    char options;
-    unsigned int path_ind;
-    bool cont;
-    int err, ret = 0;
+    int ret = 0;
 
-    options = get_options(argc, argv);
-    if (options == -1) {
-        printf("Usage: ls [-a] [file...]\n");
-        return 1;
+    ret = get_options(argc, argv);
+    if (ret) {
+        printf("Usage: ls [-%s]\n", OPTION_STRING);
+        return ret;
     }
 
-    ls_err_prog = argv[0];
+    clear_ls_err();
 
-    for (path_ind = 1; path_ind<argc && IS_OPT(argv[path_ind]); path_ind++) continue;
-    if (path_ind == argc) {
-        ret = _ls(".", options);
-        if (ret && ls_err_state != LS_ERR_NONE) {
-            ls_perror();
-        }
-    }
-    else if (path_ind == argc-1) {
-        ret = _ls(argv[path_ind], options);
-        if (ret && ls_err_state != LS_ERR_NONE) {
-            ls_perror();
-        }
-    }
-    else {
-        do {
-            printf("%s:\n", argv[path_ind]);
-
-            err = _ls(argv[path_ind], options);
-            if (err) {
-                ret |= err;
-                if (ls_err_state != LS_ERR_NONE) {    
-                    ls_perror();
-                    if (ls_err_state == LS_ERR_MALLOC) break;
-                    ls_err_state = LS_ERR_NONE;
-                    ls_err_path = NULL;
-                }
-            }
-            path_ind++;
-            cont = path_ind < argc;
-            
-            if (cont) printf("\n");
-        } while (cont);
+    ret = ls(".");
+    if (ret) {
+        ls_perror(argv[0]);
+        clear_ls_err();
     }
 
     return ret;
 }
 
-/* For printing ls errors with meaningfull errno values. Prints the program name, the error 
- *   message indexed by ls_error_state, and passes that string to perror to be handled by
- *   perror
- * It should be noted, but I am not checking the returns of *printf's in here. If the output 
- *   for error checking fails, then god has willed the program to crash and there is nothing 
- *   to be done.
+/**
+ * Prints the entries of the directory specified by path to stdout.
+ * Returns: 0 on success, 1 on error and sets ls_err_state appropriately.
  */
-void ls_perror() {
-    int err = errno;
-    if (ls_err_state == LS_ERR_MALLOC) {
-        sprintf(buffer, "%s: %s", ls_err_prog, ls_err_str[ls_err_state]);
+int ls(char *path) {
+    list dir_entries;
+    int ret = 0;
+
+    if (list_init(&dir_entries) == NULL) {
+        set_ls_err(LS_ERR_MALLOC, NULL);
+        return 1;
     }
-    else if (ls_err_state == LS_ERR_DIR_ACC || ls_err_state == LS_ERR_DIR_READ_ENTRY \
-             || ls_err_state == LS_ERR_LSTAT || ls_err_state == LS_ERR_LINK_OPEN) {
-        sprintf(buffer, "%s: ", ls_err_prog);
-        sprintf(buffer + strlen(buffer), ls_err_str[ls_err_state], ls_err_path);
+
+    ret = get_entries(path, &dir_entries);
+    if (ret) {
+        list_delete(&dir_entries);
+        return ret;
     }
-    errno = err;
-    perror(buffer);
+
+    if (option_l) {
+        ret = output_ent_stats(&dir_entries);
+    }
+    else {
+        output_ent_names(&dir_entries);
+    }
+    
+    list_delete(&dir_entries);
+    return ret;
 }
 
-/* Prints the entries of a single path to stdout with a given set of options
- * Returns: 0 on success, 1 on error
+/**
+ * Gets the names of all the files in directory stream d and places
+ *   them in dir_entries.
+ * Returns: 0 if successful, 1 on error and sets ls_err_state appropriately.
  */
-int _ls(char *path, char options) {
-    DIR *d;
-    f_list dir_entries;
-    int ret;
+int get_entries(const char *path, list *dir_entries) {
+    DIR *d = NULL;
+    int ret = 0;
 
     errno = 0;
     d = opendir(path);
     if (d == NULL) {
-        ls_err_state = LS_ERR_DIR_ACC;
-        ls_err_path = path;
-        return 1;
+        set_ls_err(LS_ERR_DIR_OPEN, path);
+        ret = 1;
+    }
+    else {
+        ret = read_dir_stream(d, path, dir_entries);
     }
 
-    if (f_list_init(&dir_entries) == NULL) {
-        ls_err_state = LS_ERR_MALLOC;
-        return 1;
-    }
-
-    if (options & opt_l_mask)
-        ret = get_ent_stats(d, &dir_entries, path, options);
-    else 
-        ret = get_ent_names(d, &dir_entries, path, options);
-
-    if (ret) {
-        switch (ls_err_state) {
-        case LS_ERR_NONE:
-            break;
-        case LS_ERR_MALLOC:
-            goto cleanup_list;
-        case LS_ERR_DIR_READ_ENTRY:
-            goto cleanup_list;
-        case LS_ERR_LSTAT:
-            goto cleanup_list;
-        case LS_ERR_LINK_OPEN:
-            goto cleanup_list;
-        }
-        switch (dir_entries.err) {
-        case FL_ERR_NONE:
-            break;
-        case FL_ERR_MALLOC:
-            ls_err_state = LS_ERR_MALLOC;
-            goto cleanup_list;
-        case FL_ERR_ARRAY_OVERFLOW:
-            fprintf(stderr, "%s\n", f_list_err_out[FL_ERR_ARRAY_OVERFLOW]);
-            fprintf(stderr, "printing entries available\n");
-            break;
-        }
-    }
-   
     closedir(d);
-
-    f_list_sort(&dir_entries);
-    if (options & opt_l_mask)
-        ret |= output_ent_stats(&dir_entries);
-    else
-        output_ent_names(&dir_entries);
-    
-    cleanup_list:
-    f_list_delete_data(&dir_entries);
     return ret;
 }
 
-/* Gets flag bits and pushes non-options to the end of argv.
- * Each character in a string that starts with a - is considered an option.
- * Returns: 0 on success, -1 if an unknown option is found.
+/**
+ * Iterates through the directory stream d, filling dir_entries with each entry.
+ * Returns: 0 if successful, 1 on error and sets ls_err_state appropriately.
  */
-char get_options(int argc, char **argv) {
-    int options = 0;
-    char opt = getopt(argc, argv, opt_string);
-
-    while (opt != -1) {
-        switch (opt) {
-        case 'a':
-            options |= opt_a_mask;
-            break;
-        case 'l':
-            options |= opt_l_mask;
-            break;
-        case '?':
-            return -1;
-        }
-        opt = getopt(argc, argv, opt_string);
-    }
-    return options;
-}
-
-/* Gets the names of all the files in directory stream d and places
- *   them in dir_entries
- * Returns: 0 if successful, 1 on error
- */
-int get_ent_names(DIR *d, f_list *dir_entries, const char *path, const char options) {
-    struct dirent *ent;
+int read_dir_stream(DIR *d, const char *path, list *dir_entries) {
+    struct dirent *ent = NULL;
+    struct stat *ent_stat = NULL;
+    list_err err = LIST_ERR_NONE;
+    int ret = 0;
 
     errno = 0;
     ent = readdir(d);
     while (ent != NULL) {
-        if (ent->d_name[0] == '.' && !(options & opt_a_mask)) {
+        if (ent->d_name[0] == '.' && !(option_a)) {
             errno = 0;
             ent = readdir(d);
             continue;
         }
 
-        if (f_list_add_elem(dir_entries, ent->d_name, NULL, NULL)) {
-            if (dir_entries->err != FL_ERR_NONE)
-                return 1;
+        if (option_l) {
+            ent_stat = get_stat(ent->d_name, path);
+            if (ent_stat == NULL) {
+                ret = 1;
+                goto cleanup_mid_loop;
+            }
         }
 
-        errno = 0;
-        ent = readdir(d);
-    }
-    if (errno != 0) {
-        ls_err_state = LS_ERR_DIR_READ_ENTRY;
-        ls_err_path = path;
-        return 1;
-    }
-    return 0;
-}
-
-/* Gets the names, stat structures and any link-paths of all the files in the directory stream
- *   and places them in dir_entries
- * Returns: 0 if successful, 1 on error
- */
-int get_ent_stats(DIR *d, f_list *dir_entries, const char *path, const char options) {
-    struct dirent *ent;
-    struct stat *ent_stat;
-    char path_buf[PATH_MAX], *link_buf;
-    int path_len = strlen(path);
-
-    memcpy(path_buf, path, path_len + 1);
-    if (path_buf[path_len-1] != '/') {
-        path_buf[path_len] = '/';
-        path_len++;
-    }
-
-    errno = 0;
-    ent = readdir(d);
-    while (ent != NULL) {
-        if (ent->d_name[0] == '.' && !(options & opt_a_mask)) {
-            errno = 0;
-            ent = readdir(d);
-            continue;
+        err = list_add_ordered(dir_entries, ent->d_name, ent_stat);
+        switch (err) {
+        case LIST_ERR_NONE:
+            break;
+        case LIST_ERR_MALLOC:
+            set_ls_err(LS_ERR_MALLOC, NULL);
+            ret = 1;
+            goto cleanup_mid_loop;
+        case LIST_ERR_DUP_ENTRY:
+            set_ls_err(LS_ERR_DUP_ENTRY, ent->d_name);
+            ret = 1;
+            goto cleanup_mid_loop;
         }
         
-        errno = 0;
-        ent_stat = malloc(sizeof(struct stat));
-        if (ent_stat == NULL) {
-            ls_err_state = LS_ERR_MALLOC;
-            return 1;
-        }
-
-        memcpy(path_buf + path_len, ent->d_name, strlen(ent->d_name) + 1);
-        errno = 0;
-        if (lstat(path_buf, ent_stat) < 0) {
-            ls_err_state = LS_ERR_LSTAT;
-            ls_err_path = path_buf;
-            goto cleanup_stat;
-        }
-
-        if (S_ISLNK(ent_stat->st_mode)) {
-            errno = 0;
-            link_buf = malloc(ent_stat->st_size);
-            if (link_buf == NULL && errno) {
-                ls_err_state = LS_ERR_MALLOC;
-                goto cleanup_stat;
-            }
-            errno = 0;
-            if (readlink(path_buf, link_buf, PATH_MAX) < 0) {
-                ls_err_state = LS_ERR_LINK_OPEN;
-                ls_err_path = path_buf;
-                goto cleanup_stat;
-            }
-            if (f_list_add_elem(dir_entries, ent->d_name, ent_stat, link_buf)) {
-                if (dir_entries->err != FL_ERR_NONE)
-                    goto cleanup_stat;
-            }
-        }
-        else {
-            if (f_list_add_elem(dir_entries, ent->d_name, ent_stat, NULL)) {
-                if (dir_entries->err != FL_ERR_NONE)
-                    goto cleanup_stat;
-            }
-        }
-
         errno = 0;
         ent = readdir(d);
     }
     if (ent == NULL && errno != 0) {
-        ls_err_state = LS_ERR_DIR_READ_ENTRY;
-        ls_err_path = path;
-        return 1;
+        set_ls_err(LS_ERR_DIR_READ_ENTRY, path);
+        ret = 1;
     }
-    return 0;
+    return ret;
 
-    cleanup_stat:
-    free(ent_stat);
-    return 1;
+    cleanup_mid_loop:
+    if (ent_stat != NULL) {
+        free(ent_stat);
+    }
+    return ret;
 }
 
-/* 
+/**
+ * Concatenates name and path and finds the new path's associated
+ *   stat structure.
+ * Returns: The stat structure if successful and NULL on error, 
+ *   setting ls_err_state appropriately.
  */
-void output_ent_names(f_list *dir_entries) {
-    int i;
-    for (i = 0; i < dir_entries->len; i++) {
-        printf("%s\n", dir_entries->f_data[i]->f_name);
+struct stat* get_stat(const char *f_name, const char *path) {
+    struct stat *f_stat = NULL;
+    
+    errno = 0;
+    f_stat = malloc(sizeof(struct stat));
+    if (f_stat == NULL) {
+        set_ls_err(LS_ERR_MALLOC, NULL);
+        return NULL;
     }
-}
 
-/* 
- * Returns: 0 if successful, 1 on error 
- */
-int output_ent_stats(f_list *dir_entries) {
-    struct stat_out_s *stat_strings;
-    int i, j, ret = 0;
-    unsigned int max_char_usr = 0, max_char_grp = 0, max_dig_nlink = 0, max_dig_size = 0;
+    memcpy(path_buffer, path, strlen(path) + 1);
+    if (path_buffer[strlen(path)-1] != '/') {
+        path_buffer[strlen(path)+1] = '\0';
+        path_buffer[strlen(path)] = '/';
+    }
+    memcpy(path_buffer + strlen(path_buffer), f_name, strlen(f_name) + 1);
 
     errno = 0;
-    stat_strings = malloc(sizeof(struct stat_out_s) * (dir_entries->len));
-    if (stat_strings == NULL && errno) {
-        ls_err_state = LS_ERR_MALLOC;
-        return 1;
+    if (stat(path_buffer, f_stat) < 0) {
+        set_ls_err(LS_ERR_STAT, path_buffer);
+
+        free(f_stat);
+        f_stat = NULL;
     }
 
-    for (i = 0; i < dir_entries->len; i++) {
-        if (get_stat_out(stat_strings + i, dir_entries->f_data[i]->f_stat)) {
-            if (ls_err_state == LS_ERR_MALLOC)
-                goto cleanup_inloop_stat_strings;
+    return f_stat;
+}
+
+/**
+ * Outputs the filenames stored in dir_entries to stdout
+ */
+void output_ent_names(list *dir_entries) {
+    node *dir_entries_i;
+
+    dir_entries_i = *dir_entries;
+    while (dir_entries_i->next != NULL) {
+        printf("%s\n", dir_entries_i->data.f_name);
+        dir_entries_i = dir_entries_i->next;
+    }
+}
+
+/**
+ * Outputs the filenames and stat information in dir_entries to stdout
+ * Returns: 0 if successful, 1 on error and sets ls_err_state appropriately.
+ */
+int output_ent_stats(list *dir_entries) {
+    struct stat_out_s stat_out;
+    node *dir_entries_i;
+    int ret = 0;
+    unsigned long nlink_cast;
+    long size_cast;
+    
+    dir_entries_i = *dir_entries;
+    while (dir_entries_i->next != NULL) {
+        ret = fill_stat_out(&stat_out, &(dir_entries_i->data));
+        if (ret) {
+            return ret;
         }
-        ret = strlen(stat_strings[i].usr);
-        if (ret > max_char_usr) max_char_usr = ret;
-        ret = strlen(stat_strings[i].grp);
-        if (ret > max_char_grp) max_char_grp = ret;
-        ret = get_digits(dir_entries->f_data[i]->f_stat->st_nlink);
-        if (ret > max_dig_nlink) max_dig_nlink = ret;
-        ret = get_digits(dir_entries->f_data[i]->f_stat->st_size);
-        if (ret > max_dig_size) max_dig_size = ret;
-    }
-    
-    for (i = 0; i < dir_entries->len; i++) {
-        if (dir_entries->f_data[i]->link_path == NULL)
-            printf("%s %*lu %*s %*s %*ld %s %s\n", stat_strings[i].mode, max_dig_nlink, dir_entries->f_data[i]->f_stat->st_nlink, \
-                max_char_usr, stat_strings[i].usr, max_char_grp, stat_strings[i].grp, max_dig_size, dir_entries->f_data[i]->f_stat->st_size, \
-                stat_strings[i].mtim, dir_entries->f_data[i]->f_name);
-        else
-            printf("%s %*lu %*s %*s %*ld %s %s -> %s\n", stat_strings[i].mode, max_dig_nlink, dir_entries->f_data[i]->f_stat->st_nlink, \
-                    max_char_usr, stat_strings[i].usr, max_char_grp, stat_strings[i].grp, max_dig_size, dir_entries->f_data[i]->f_stat->st_size, \
-                    stat_strings[i].mtim, dir_entries->f_data[i]->f_name, dir_entries->f_data[i]->link_path);
-    }
-    
-    for (i = 0; i < dir_entries->len; i++) {
-        free(stat_strings[i].usr);
-        free(stat_strings[i].grp);
-        free(stat_strings[i].mtim);
-    }
-    free(stat_strings);
-    return 0;
 
-    cleanup_inloop_stat_strings:
-    for (j = 0; j < i; j++) {
-        free(stat_strings[j].usr);
-        free(stat_strings[j].grp);
-        free(stat_strings[j].mtim);
+        nlink_cast = (unsigned long)dir_entries_i->data.f_stat->st_nlink;
+        size_cast = (long)dir_entries_i->data.f_stat->st_size;
+
+        printf("%s %lu %s %s %ld %s %s\n", stat_out.mode_str, 
+            nlink_cast, stat_out.usr_str, stat_out.grp_str, 
+            size_cast, stat_out.mtim_str, stat_out.f_name);
+
+        free_stat_out(&stat_out);
+        dir_entries_i = dir_entries_i->next;
     }
-    free(stat_strings);
-    return 1;
+    return ret;
 }
 
-/* 
- * Returns: 0 if successful, 1 on error 
+/**
+ * Fills stat_out using the fields given in data.
+ * Returns: 0 if successful, 1 on error and sets ls_err_state appropriately.
  */
-int get_stat_out(struct stat_out_s *stat_out, struct stat *f_stat) {
-    get_mode(stat_out->mode, f_stat->st_mode);
-    if (get_usr(&(stat_out->usr), f_stat->st_uid))
-        return 1;
-    if (get_grp(&(stat_out->grp), f_stat->st_gid))
+int fill_stat_out(struct stat_out_s *stat_out, struct data_s *data) {
+    int ret = 0;
+
+    get_mode_str(stat_out->mode_str, data->f_stat->st_mode);
+
+    ret = get_usr_str(&(stat_out->usr_str), data->f_stat->st_uid);
+    if (ret) {
+        goto cleanup_none;
+    }
+
+    ret = get_grp_str(&(stat_out->grp_str), data->f_stat->st_gid);
+    if (ret) {
         goto cleanup_usr;
-    if (get_mtim(&(stat_out->mtim), &(f_stat->st_mtime)))
-        goto cleanup_group;
-    return 0;
+    }
+    
+    ret = get_mtim_str(&(stat_out->mtim_str), data->f_stat->st_mtime);
+    if (ret) {
+        goto cleanup_group_usr;
+    }
 
-    cleanup_group:
-    free(stat_out->grp);
+    stat_out->f_name = data->f_name;
+    return ret;
+
+    cleanup_group_usr:
+    free(stat_out->grp_str);
     cleanup_usr:
-    free(stat_out->usr);
-    return 1;
+    free(stat_out->usr_str);
+    cleanup_none:
+    return ret;
 }
 
-/* 
+/**
+ * Fills a fixed sized character sequence representing a file's mode.
  */
-void get_mode(char *mode_s, mode_t mode) {
+void get_mode_str(char *mode_s, mode_t mode) {
     if (S_ISREG(mode))
         mode_s[0] = '-';
     else if (S_ISDIR(mode))
@@ -403,98 +279,165 @@ void get_mode(char *mode_s, mode_t mode) {
     mode_s[10] = '\0';
 }
 
-/* 
- * Returns: 0 if successful, 1 on error 
+/**
+ * Finds a user name given a uid. If the user name cannot be found for some
+ *   reason, the value of uid is stored in usr instead.
+ * Returns: 0 if successful, 1 on error and sets ls_err_state appropriately.
  */
-int get_usr(char **usr, uid_t uid) {
+int get_usr_str(char **usr_str, uid_t uid) {
     struct passwd *passwd_ent;
-    errno = 0;
+
     passwd_ent = getpwuid(uid);
-    if (errno) {
-        perror("getpwuid");
-    }
     if (passwd_ent == NULL) {
+        sprintf(str_buffer, "%u", uid);
+
         errno = 0;
-        *usr = malloc(11);
-        if (*usr == NULL) {
-            ls_err_state = LS_ERR_MALLOC;
+        *usr_str = malloc(strlen(str_buffer));
+        if (*usr_str == NULL) {
+            set_ls_err(LS_ERR_MALLOC, NULL);
             return 1;
         }
-        sprintf(*usr, "%u", uid);
+
+        sprintf(*usr_str, "%s\n", str_buffer);
     }
     else {
         errno = 0;
-        *usr = malloc(strlen(passwd_ent->pw_name) + 1);
-        if (*usr == NULL && errno) {
-            ls_err_state = LS_ERR_MALLOC;
+        *usr_str = malloc(strlen(passwd_ent->pw_name) + 1);
+        if (*usr_str == NULL && errno) {
+            set_ls_err(LS_ERR_MALLOC, NULL);
             return 1;
         }
-        memcpy(*usr, passwd_ent->pw_name, strlen(passwd_ent->pw_name) + 1);
+
+        memcpy(*usr_str, passwd_ent->pw_name, strlen(passwd_ent->pw_name) + 1);
     }
     return 0;
 }
 
-/* 
- * Returns: 0 if successful, 1 on error 
+/**
+ * Finds a group name given a gid. If the group name cannot be found, the value
+ *   of gid is stored in grp instead.
+ * Returns: 0 if successful, 1 on error and sets ls_err_state appropriately.
  */
-int get_grp(char **grp, uid_t gid) {
+int get_grp_str(char **grp_str, gid_t gid) {
     struct group *group_ent;
-    errno = 0;
+
     group_ent = getgrgid(gid);
-    if (errno) {
-        perror("getgrgid");
-    }
     if (group_ent == NULL) {
+        sprintf(str_buffer, "%u", gid);
+
         errno = 0;
-        *grp = malloc(11);
-        if (*grp == NULL) {
-            ls_err_state = LS_ERR_MALLOC;
+        *grp_str = malloc(strlen(str_buffer));
+        if (*grp_str == NULL) {
+            set_ls_err(LS_ERR_MALLOC, NULL);
             return 1;
         }
-        sprintf(*grp, "%u", gid);
+
+        sprintf(*grp_str, "%s\n", str_buffer);
     }
     else {
         errno = 0;
-        *grp = malloc(strlen(group_ent->gr_name) + 1);
-        if (*grp == NULL && errno) {
-            ls_err_state = LS_ERR_MALLOC;
+        *grp_str = malloc(strlen(group_ent->gr_name) + 1);
+        if (*grp_str == NULL && errno) {
+            set_ls_err(LS_ERR_MALLOC, NULL);
             return 1;
         }
-        memcpy(*grp, group_ent->gr_name, strlen(group_ent->gr_name) + 1);
+
+        memcpy(*grp_str, group_ent->gr_name, strlen(group_ent->gr_name) + 1);
     }
     return 0;
 }
 
-/* 
- * Returns: 0 if successful, 1 on error 
+/** 
+ * Gets the formatted date from mtim.
+ * Returns: 0 if successful, 1 on error and sets ls_err_state appropriately.
  */
-int get_mtim(char **mtim_s, time_t *mtim) {
-    struct tm *t = localtime(mtim);
+int get_mtim_str(char **mtim_str, time_t mtim) {
+    struct tm *t;
+    
+    t = localtime(&mtim);
     errno = 0;
-    if (strftime(buffer, buffer_size, "%b %e %H:%M %Y", t) == 0 && errno) {
-        memset(buffer, '?', 17);
-        buffer[17] = '\0';
+    if (strftime(str_buffer, str_buffer_size, "%b %e %H:%M", t) == 0 && errno) {
+        memset(str_buffer, '?', 12);
+        str_buffer[12] = '\0';
     }
     errno = 0;
-    *mtim_s = malloc(strlen(buffer) + 1);
-    if (*mtim_s == NULL && errno) {
-        ls_err_state = LS_ERR_MALLOC;
+    *mtim_str = malloc(strlen(str_buffer) + 1);
+    if (*mtim_str == NULL && errno) {
+        set_ls_err(LS_ERR_MALLOC, NULL);
         return 1;
     }
-    memcpy(*mtim_s, buffer, strlen(buffer) + 1);
+    memcpy(*mtim_str, str_buffer, strlen(str_buffer) + 1);
     return 0;
 }
 
-/* Gets the number of digits in an unsigned long
+/**
+ * Frees all dynamically allocated fields of stat_out
  */
-unsigned int get_digits(unsigned long n) {
-    unsigned int dig = 1;
-    unsigned long place = 10;
-    while (n % place != n) {
-        dig++;
-        if (place * 10 < place)
+void free_stat_out(struct stat_out_s *stat_out) {
+    free(stat_out->usr_str);
+    free(stat_out->grp_str);
+    free(stat_out->mtim_str);
+}
+
+/**
+ * Checks argv for options and sets option flags.
+ * Returns: 0 on success, 1 if an unknown option is found.
+ */
+int get_options(const int argc, char **argv) {
+    char opt = -1;
+    
+    opt = getopt(argc, argv, OPTION_STRING);
+    while (opt != -1) {
+        switch (opt) {
+        case 'a':
+            option_a = true;
             break;
-        place *= 10;
+        case 'l':
+            option_l = true;
+            break;
+        case '?':
+            return 1;
+        }
+        opt = getopt(argc, argv, OPTION_STRING);
     }
-    return dig;
+    return 0;
+}
+
+/**
+ * Prints ls errors. Prints error for errno value if it makes sense for
+ *   the given ls_err.
+ */
+void ls_perror(char *program) {
+    int err;
+
+    err = errno;
+    sprintf(str_buffer, "%s: ", program);
+    sprintf(str_buffer + strlen(str_buffer), ls_err_str[ls_err_state], \
+            ls_err_path);
+
+    errno = err;
+    if (ls_err_errno[ls_err_state]) {
+        perror(str_buffer);
+    }
+    else {
+        fprintf(stderr, "%s\n", str_buffer);
+    }
+}
+
+/**
+ * Sets the current ls_err_state and path (NULL if path not needed)
+ */
+void set_ls_err(ls_err err, const char *path) {
+    ls_err_state = err;
+    if (path != NULL) {
+        memcpy(ls_err_path, path, strlen(path) + 1);
+    }
+}
+
+/**
+ * Clears the current ls_err_state and path
+ */
+void clear_ls_err() {
+    ls_err_state = LS_ERR_NONE;
+    memset(ls_err_path, '\0', ls_err_path_size);
 }
