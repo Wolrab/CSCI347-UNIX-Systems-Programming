@@ -15,9 +15,8 @@ enum list_err {
 };
 
 struct data_s {
-    char *f_name;
-    char *f_name_lower;
-    struct stat *f_stat;
+    char *path;
+    char *path_lower;
 };
 
 typedef struct node_s node;
@@ -34,20 +33,14 @@ list* list_init(list *l);
 
 // Creates and adds a new node to l with the given data. Handles any necessary
 //   copying.
-// In the event of an error, the f_stat field is not freed and the user must
-//   detect the error and handle its deletion.
-list_err list_add_ordered(list *l, char *f_name, struct stat *f_stat);
+list_err list_add_ordered(list *l, char *path);
 
 // Deletes l and points it to NULL.
-// All members of l, whether they were copied by l or their reference was
-//   simply held, will be deleted. The user must not be holding any 
-//   references to data internal to this list after it is deleted as their  
-//   values will no longer hold meaning.
 void list_delete(list *l);
 
 // Helper function for list_add_ordered.
 // Fills the data struct.
-list_err node_fill_data(struct data_s *data, char *f_name, struct stat *f_stat);
+list_err node_fill_data(struct data_s *data, char *path);
 
 // Deletes n and all its entries.
 void node_delete(node *n);

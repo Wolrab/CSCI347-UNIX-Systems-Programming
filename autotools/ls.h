@@ -36,22 +36,8 @@ enum ls_err {
     LS_ERR_STAT = 4,
     LS_ERR_DUP_ENTRY = 5
 };
-const char *const ls_err_str[] = {
-    "no error%s",
-    "malloc%s",
-    "cannot open dir '%s'",
-    "cannot read an entry in directory '%s'",
-    "cannot stat '%s'",
-    "duplicate file '%s' found: program data has most likely been corrupted"
-};
-const bool ls_err_errno[] = {
-    false,
-    true,
-    true,
-    true,
-    true,
-    false
-};
+extern const char *const ls_err_str[];
+extern const bool ls_err_errno[];
 
 // Global error variables, static because no other compilation unit should
 //   be able to change these values.

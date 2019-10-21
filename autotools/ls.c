@@ -1,5 +1,16 @@
 #include "ls.h"
 
+// Define external constants
+const char *const ls_err_str[] = {
+    "no error%s",
+    "malloc%s",
+    "cannot open dir '%s'",
+    "cannot read an entry in directory '%s'",
+    "cannot stat '%s'",
+    "duplicate file '%s' found: program data has most likely been corrupted"
+};
+const bool ls_err_errno[] = {false, true, true, true, true, false};
+
 /** 
  * The ls program. Prints all entries of current directory to stdout and exits.
  *   Output style is modified by options passed into the program.

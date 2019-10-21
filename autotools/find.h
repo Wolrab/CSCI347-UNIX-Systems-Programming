@@ -7,24 +7,14 @@
 #include <fts.h>
 #include <stdio.h>
 #include <time.h>
+#include "find_list.h"
+#include "find_expr.h"
 
 // Iterates through the file tree
 int find(FTS *file_tree, char **expression, int expression_len);
 
-const char *const cmin = "cmin";
-const char *const cnewer = "cnewer";
-const char *const ctime = "ctime";
-const char *const cmin = "cmin";
-const char *const cmin = "cmin";
-
-typedef enum expression_error {
-    EXPR_ERR_NONE = 0,
-    EXPR_ERR_INVALID_PRIMARY = 1,
-    EXPR_ERR_INVALID_ARG = 2
-} expression_error;
-
 // Checks if an expression is valid
-expression_error validate_expression(char **expression, int expression_len);
+expr_err validate_expression(char **expression, int expression_len);
 // Evaluates a given expression
 bool evaluate_expression(char **expression, int expression_len);
 
