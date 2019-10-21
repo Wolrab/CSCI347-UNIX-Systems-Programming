@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
     expr_args = argv[2];
     expr_args_size = argc-2;*/
 
-    expr_args = argv[1];
+    expr_args = &(argv[1]);
     expr_args_size = argc-1;
 
     err = create_expression(&expression, expr_args, expr_args_size);
@@ -50,14 +50,18 @@ void expression_perror(expr_err err, char **argv, char **expr_args) {
     switch(err) {
     case EXPR_ERR_MALLOC:
         perror(argv[0]);
+        break;
     case EXPR_ERR_INVALID_PRIMARY:
         fprintf(stderr, "%s: invalid primary '%s' in expression\n", \
             argv[0], expr_args[0]);
+        break;
     case EXPR_ERR_INVALID_ARG:
-        fprintf(stderr, "%s: invalid argument '%s' for primary '%s' in \
-            expression\n", argv[0], expr_args[1], expr_args[0]);
+        fprintf(stderr, "%s: invalid argument '%s' for primary '%s' in "
+            "expression\n", argv[0], expr_args[1], expr_args[0]);
+        break;
     case EXPR_ERR_NO_ARG:
         fprintf(stderr, "%s: no argument found for primary '%s'", \
             argv[0], expr_args[0]);
+        break;
     }
 }

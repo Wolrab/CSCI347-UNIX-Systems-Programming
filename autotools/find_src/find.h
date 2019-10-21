@@ -7,7 +7,7 @@
 #include <fts.h>
 #include <stdio.h>
 #include <time.h>
-#include "list.h"
+#include "path_list.h"
 #include "expression_defs.h"
 #include "expression.h"
 
