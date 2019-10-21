@@ -1,5 +1,8 @@
 #include "find.h"
 
+/**
+ * 
+ */
 int main(int argc, char **argv) {
     char **expr_args;
     int expr_args_size;
@@ -8,36 +11,50 @@ int main(int argc, char **argv) {
     expr_err err = EXPR_ERR_NONE;
     int ret = 0;
 
-    struct timespec tm;
-    
-    /*
     if (argc == 1) {
         printf("%s: invalid arguments\n", argv[0]);
-        printf("Usage: find [file] [expression]\n");
+        printf("Usage: %s file [expression]\n", argv[0]);
         return 1;
     }
+
     if (access(argv[1], F_OK) < 0) {
         printf("%s: file '%s' not found\n", argv[0], argv[1]);
         return 1;
     }
 
-    expr_args = argv[2];
-    expr_args_size = argc-2;*/
+    expr_args = &(argv[2]);
+    expr_args_size = argc-2;
 
-    expr_args = &(argv[1]);
-    expr_args_size = argc-1;
-
-    err = create_expression(&expression, expr_args, expr_args_size);
+    err = expression_create(&expression, expr_args, expr_args_size);
     if (err != EXPR_ERR_NONE) {
         expression_perror(err, argv, expr_args);
         return 1;
     }
 
-    clock_gettime(CLOCK_REALTIME, &tm);
-    set_start_time(tm.tv_sec);
+    ret = init_global_expression_states();
+    if (ret) {
+        perror(argv[0]);
+        return ret;
+    }
 
     //ret = find(&(argv[1]), &expression);
+    if (ret) {
+        // do things
+    }
 
+    return ret;
+}
+
+int init_global_expression_states() {
+    struct timespec tm;
+    int ret = 0;
+
+    errno = 0;
+    ret = clock_gettime(CLOCK_REALTIME, &tm);
+    if (ret) {
+        return ret;
+    }
+    set_start_time(tm.tv_sec);
     return ret;
 }
 

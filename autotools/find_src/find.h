@@ -13,6 +13,7 @@
 
 // Iterates through the file tree
 int find(char **file, expression_t *expression);
+int init_global_expression_states();
 void expression_perror(expr_err err, char **argv, char **expr_args);
 
 #endif /* __FIND_H */
