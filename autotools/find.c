@@ -2,8 +2,9 @@
 
 int main(int argc, char **argv) {
     FTS *file_tree;
-    char *expression;
-    int expression_len;
+    char *expr;
+    int expr_len ;
+    expr_err err = EXPR_ERR_NONE;
     
     if (argc == 1) {
         printf("%s: invalid arguments\n", argv[0]);
@@ -15,18 +16,20 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    expression = argv[2];
-    expression_len = argc-2;
-    switch(validate_expression(expression, expression_len)) {
+    expr = argv[2];
+    expr_len = argc-2;
+
+    err = parse_expr(expr, expr_len);
+    switch(err) {
     case EXPR_ERR_NONE:
         break;
     case EXPR_ERR_INVALID_PRIMARY:
         printf("%s: invalid primary '%s' in expression\n", \
-                argv[0], expression[0]);
+                argv[0], expr[0]);
         return 1;
     case EXPR_ERR_INVALID_ARG:
         printf("%s: invalid argument '%s' for primary '%s' in expression\n", \
-                argv[0], expression[1], expression[0]);
+                argv[0], expr[1], expr[0]);
         return 1;
     }
 
@@ -34,9 +37,4 @@ int main(int argc, char **argv) {
     // find
 
     return 0;
-}
-
-// Checks if an expression is valid
-expression_error validate_expression(char **expression, int expression_len) {
-
 }

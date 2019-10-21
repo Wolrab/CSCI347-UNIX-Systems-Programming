@@ -1,4 +1,4 @@
-#include "ls_list.h"
+#include "find_list.h"
 
 /**
  * Implementation of an increasing-order linked list for holding file names 
@@ -32,10 +32,9 @@ list* list_init(list *l) {
  * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails and
  *   LIST_ERR_DUP_ENTRY if the created node already exists in the list.
  */
-list_err list_add_ordered(list *l, char *f_name, struct stat *f_stat) {
+list_err list_add_ordered(list *l, char *path) {
     node *curr, *n;
-    list_err ret = LIST_ERR_NONE; 
-    int ord = 0;
+    int ret = 0, ord = 0;
 
     errno = 0;
     n = malloc(sizeof(node));
@@ -43,7 +42,7 @@ list_err list_add_ordered(list *l, char *f_name, struct stat *f_stat) {
         return LIST_ERR_MALLOC;
     }
 
-    ret = node_fill_data(&(n->data), f_name, f_stat);
+    ret = node_fill_data(&(n->data), path);
     switch (ret) {
     case LIST_ERR_NONE:
         break;
@@ -59,21 +58,14 @@ list_err list_add_ordered(list *l, char *f_name, struct stat *f_stat) {
     }
 
     curr = *l;
-    ord = node_order(n, curr);
-    if (ord < 0) {
-        n->next = curr;
-        *l = n;
-        return ret;
-    }
-
     ord = node_order(n, curr->next);
     while (ord > 0) {
         curr = curr->next;
         ord = node_order(n, curr->next);
     }
     if (ord == 0) {
-        free(n->data.f_name);
-        free(n->data.f_name_lower);
+        free(n->data.path);
+        free(n->data.path_lower);
         ret = LIST_ERR_DUP_ENTRY;
     }
     else {
@@ -104,21 +96,20 @@ void list_delete(list *l) {
  *   that is needed.
  * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails.
  */
-list_err node_fill_data(struct data_s *data, char *f_name, struct stat *f_stat) {
+list_err node_fill_data(struct data_s *data, char *path) {
     errno = 0;
-    data->f_name = malloc(strlen(f_name) + 1);
-    if (data->f_name == NULL && errno) {
+    data->path = malloc(strlen(path) + 1);
+    if (data->path == NULL && errno) {
         return LIST_ERR_MALLOC;
     }
-    memcpy(data->f_name, f_name, strlen(f_name) + 1);
+    memcpy(data->path, path, strlen(path) + 1);
 
-    data->f_name_lower = lower_string_cpy(f_name);
-    if (data->f_name_lower && errno) {
-        free(data->f_name);
+    data->path_lower = lower_string_cpy(path);
+    if (data->path_lower && errno) {
+        free(data->path);
         return LIST_ERR_MALLOC;
     }
 
-    data->f_stat = f_stat;
     return LIST_ERR_NONE;
 }
 
@@ -126,9 +117,8 @@ list_err node_fill_data(struct data_s *data, char *f_name, struct stat *f_stat) 
  * Deletes a given node.
  */
 void node_delete(node *n) {
-    free(n->data.f_name);
-    free(n->data.f_name_lower);
-    free(n->data.f_stat);
+    free(n->data.path);
+    free(n->data.path_lower);
     free(n);
 }
 
@@ -148,9 +138,9 @@ int node_order(node *n1, node *n2) {
     if (n2 == NULL) {
         return -1;
     }
-    ret = strcoll(n1->data.f_name_lower, n2->data.f_name_lower);
+    ret = strcoll(n1->data.path_lower, n2->data.path_lower);
     if (ret == 0) {
-        ret = strcoll(n1->data.f_name, n2->data.f_name);
+        ret = strcoll(n1->data.path, n2->data.path);
     }
     return ret;
 }
