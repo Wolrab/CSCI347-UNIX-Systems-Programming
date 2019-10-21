@@ -1,4 +1,4 @@
-#include "find_expr.h"
+#include "expr.h"
 
 const char *const expr_primaries_str[] = {"cmin", "cnewer", "ctime", "cmin", \
     "mtime", "type"};

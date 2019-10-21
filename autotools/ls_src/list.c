@@ -74,6 +74,7 @@ list_err list_add_ordered(list *l, char *f_name, struct stat *f_stat) {
     if (ord == 0) {
         free(n->data.f_name);
         free(n->data.f_name_lower);
+        free(n);
         ret = LIST_ERR_DUP_ENTRY;
     }
     else {

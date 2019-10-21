@@ -1,5 +1,5 @@
-#ifndef __FIND_EXPR
-#define __FIND_EXPR
+#ifndef __EXPR
+#define __EXPR
 
 typedef enum arg_type arg_type;
 enum arg_type {
@@ -25,7 +25,7 @@ typedef enum expr_operators expr_operators;
 enum expr_operators {
     AND = 0
 };
-extern char *const expr_operators_str[] = {"a"};
+extern char *const expr_operators_str[];
 
 // Errors for 
 typedef enum expr_err expr_err;
@@ -35,4 +35,4 @@ enum expr_err {
     EXPR_ERR_INVALID_ARG = 2
 };
 
-#endif /* __FIND_EXPR */
+#endif /* __EXPR */

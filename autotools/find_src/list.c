@@ -1,4 +1,4 @@
-#include "find_list.h"
+#include "list.h"
 
 /**
  * Implementation of an increasing-order linked list for holding file names 
@@ -58,14 +58,20 @@ list_err list_add_ordered(list *l, char *path) {
     }
 
     curr = *l;
+    ord = node_order(n, curr);
+    if (ord < 0) {
+        n->next = curr;
+        *l = n;
+        return ret;
+    }
+    
     ord = node_order(n, curr->next);
     while (ord > 0) {
         curr = curr->next;
         ord = node_order(n, curr->next);
     }
     if (ord == 0) {
-        free(n->data.path);
-        free(n->data.path_lower);
+        node_delete(n);
         ret = LIST_ERR_DUP_ENTRY;
     }
     else {
