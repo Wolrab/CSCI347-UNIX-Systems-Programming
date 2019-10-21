@@ -11,7 +11,7 @@
 #include <time.h>
 #include <pwd.h>
 #include <grp.h>
-#include "ls_list.h"
+#include "list.h"
 
 // Global buffers. Static to increase safety.
 static char str_buffer[4096];

@@ -1,5 +1,5 @@
-#ifndef __LS_LIST_H
-#define __LS_LIST_H
+#ifndef __LIST_H
+#define __LIST_H
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
@@ -59,4 +59,4 @@ int node_order(node *n1, node *n2);
 //   lowercase form.
 char* lower_string_cpy(char *s);
 
-#endif /* __LS_LIST_H */
+#endif /* __LIST_H */

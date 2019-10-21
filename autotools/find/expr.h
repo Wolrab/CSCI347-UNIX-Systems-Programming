@@ -25,7 +25,7 @@ typedef enum expr_operators expr_operators;
 enum expr_operators {
     AND = 0
 };
-const char *const expr_operators_str[] = {"a"};
+extern char *const expr_operators_str[] = {"a"};
 
 // Errors for 
 typedef enum expr_err expr_err;
