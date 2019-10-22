@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+#
+
+TEMP=$(mktemp -d)
+WORK=$(pwd)
+
+touch ${TEMP}/A
+
+
+cd ${TEMP}
+${WORK}/find . | grep -q './A'
+status=$?
+
+cd ${WORK}
+rm -rf ${TEMP}
+
+exit ${status}
