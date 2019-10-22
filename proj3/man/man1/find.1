@@ -160,10 +160,14 @@ Print out a list of all the directories starting with /.
 .It Li "find  /  -type d -ctime 1"
 Print out a list of all the directories starting with / that were changed
 today.  
+.It Li "find  /  -type f -exec test -s {} \e;"
+Print out a list of all regular files starting with / that have a file size
+greater than zero.
 .Sh SEE ALSO
 .Xr fork 2 ,
 .Xr execvp 3 ,
 .Xr wait 2 ,
+.Xr test 1 ,
 .Sh STANDARDS
 The
 .Nm
