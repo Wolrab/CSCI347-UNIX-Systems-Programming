@@ -10,13 +10,19 @@
  *   expression object is created, all primaries and their options are self
  *   contained within the expression and no reference to the options is needed
  *   again.
+ * Error checking is done with values passed back, I have learned my leason 
+ *   about global nonesense (for error checking at least...)
+ * Simple for now, in the future when more complex expressions are added 
+ *   lots of the basic structure of the linked lists can probably be turned 
+ *   into some kind of neat little parse tree.
  */
 
 /**
  * Creates an expression given a sequence of primaries and their arguments.
  * Returns: EXPR_ERR_NONE if full expression is successfully parsed. Otherwise
  *   returns any of the other EXPR_ERR's and permutates expr_args if a parsing 
- *   error occured. (see expressions.h for description of permutation behavior)
+ *   error occured. Invalid primaries are put at expr_args[0] and invalid 
+ *   arguments at expr_args[1].
  */
 expr_err expression_create(expression_t *expression, char **expr_args, \
         int expr_args_size) {
@@ -31,17 +37,8 @@ expr_err expression_create(expression_t *expression, char **expr_args, \
     while (i < expr_args_size) {
         ret = expression_parse_primary_node(expr_args, expr_args_size, \
             i, &node);
-        switch(ret) {
-        case EXPR_ERR_MALLOC:
-            goto cleanup_list;
-        case EXPR_ERR_INVALID_PRIMARY:
-            permutate_args_invalid_primary(expr_args, i);
-            goto cleanup_list;
-        case EXPR_ERR_INVALID_ARG:
-            permutate_args_invalid_primary_arg(expr_args, i, i+1);
-            goto cleanup_list;
-        case EXPR_ERR_NO_ARG:
-            permutate_args_invalid_primary(expr_args, i);
+        if (ret) {
+            permutate_args(ret, expr_args, i);
             goto cleanup_list;
         }
 
@@ -56,25 +53,35 @@ expr_err expression_create(expression_t *expression, char **expr_args, \
 }
 
 /**
+ * Helper function for permuting expr_args given different errors
+ */
+void permutate_args(expr_err err, char **expr_args, int i) {
+    if (err == EXPR_ERR_INVALID_PRIMARY) {
+        permutate_args_invalid_primary(expr_args, i);
+    }
+    else if (err == EXPR_ERR_INVALID_ARG) {
+        permutate_args_invalid_primary_arg(expr_args, i, i+1);
+    }
+    else if (err == EXPR_ERR_NO_ARG) {
+        permutate_args_invalid_primary(expr_args, i);
+    }
+}
+
+/**
  * Parses one primary and its arg at a given point in expr_args and puts the 
- *   resulting primary_node in node.
+ *   resulting primary_node in node. This is the messy workhorse of 
+ *   primary_node creation, though most of its work is managing errors.
  * Returns: EXPR_ERR_NONE on success, otherwise returns any of the other 
  *   EXPR_ERR's.
  */
 expr_err expression_parse_primary_node(char **expr_args, int expr_args_size, \
         int expr_arg_i, primary_node **node) {
-    arg_type primary_arg_type;
     primary_t primary;
     *node = NULL;
     expr_err ret = EXPR_ERR_NONE;
 
     ret = get_primary(expr_args[expr_arg_i], &primary);
     if (ret == EXPR_ERR_INVALID_PRIMARY) {
-        goto cleanup;
-    }
-
-    if (expr_arg_i == expr_args_size-1) {
-        ret = EXPR_ERR_NO_ARG;
         goto cleanup;
     }
 
@@ -85,16 +92,13 @@ expr_err expression_parse_primary_node(char **expr_args, int expr_args_size, \
         goto cleanup;
     }
 
-    primary_arg_type = primary_arg_type_arr[primary];
-    (*node)->type = primary_arg_type;
-    (*node)->next = NULL;
-    set_primary_eval_func(primary, *node);
-
-    ret = get_primary_arg(expr_args[expr_arg_i+1], *node);
-    if (ret == EXPR_ERR_MALLOC) {
+    if (expr_arg_i == expr_args_size-1) {
+        ret = EXPR_ERR_NO_ARG;
         goto cleanup;
     }
-    else if (ret == EXPR_ERR_INVALID_ARG) {
+
+    ret = primary_node_fill(primary, expr_args[expr_arg_i+1], *node);
+    if (ret) {
         goto cleanup;
     }
     return ret;
@@ -108,7 +112,30 @@ expr_err expression_parse_primary_node(char **expr_args, int expr_args_size, \
 }
 
 /**
- * Evaluates a full expression for its truth value given a file's stat struct
+ * Fills node iwht the given values. It still needs to find the arg_str 
+ *   itself though as the only place to store it is within the node itself.
+ * Returns: EXPR_ERR_NONE on success and either EXPR_ERR_INVALID_PRIMARY
+ */
+expr_err primary_node_fill(primary_t primary, char *primary_arg_str, \
+        primary_node *node) {
+    arg_type primary_arg_type;
+    expr_err ret = EXPR_ERR_NONE;
+
+    primary_arg_type = primary_arg_type_arr[primary];
+    node->type = primary_arg_type;
+    node->next = NULL;
+    ret = set_primary_eval_func(primary, node);
+    if (ret) {
+        return ret;
+    }
+
+    ret = get_primary_arg(primary_arg_str, node);
+    return ret;
+}
+
+/**
+ * Evaluates a full expression for its truth value given a file's stat struct.
+ * All primaries are assumed to by &'ed together.
  * Returns: true if all primaries return true, false otherwise.
  */
 bool expression_evaluate(expression_t *expression, struct stat *f_stat) {
@@ -174,9 +201,11 @@ void expression_delete(expression_t *expression) {
 }
 
 /**
- * Finds and sets the primary eval func for the primary_node.
+ * Finds and sets the eval functoin for node.
+ * Returns: EXPR_ERR_NONE on success and EXPR_ERR_INVALID_PRIMARY if
+ *   primary is not found.
  */
-void set_primary_eval_func(primary_t primary, primary_node *node) {
+expr_err set_primary_eval_func(primary_t primary, primary_node *node) {
     switch(primary) {
     case CNEWER:
         node->primary_arg_type.stat_t.eval = &eval_cnewer;
@@ -196,7 +225,10 @@ void set_primary_eval_func(primary_t primary, primary_node *node) {
     case TYPE:
         node->primary_arg_type.file_type_t.eval = &eval_type;
         break;
+    default:
+        return EXPR_ERR_INVALID_PRIMARY;
     }
+    return EXPR_ERR_NONE;
 }
 
 /**
@@ -233,7 +265,8 @@ expr_err get_primary(char *expr_element, primary_t *primary) {
 
 /**
  * Parses expr_element and sets node's arg value accordingly.
- * Returns: EXPR_ERR_NONE 
+ * Returns: EXPR_ERR_NONE on success, EXPR_ERR_INVALID_ARG if the type-specific
+ *   arg function fails and EXPR_ERR_MALLOC for a malloc failure.
  */
 expr_err get_primary_arg(char *expr_element, primary_node *node) {
     expr_err ret = EXPR_ERR_NONE;

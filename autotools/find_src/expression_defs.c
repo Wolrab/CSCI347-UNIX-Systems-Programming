@@ -9,12 +9,14 @@ const char *const primary_str_arr[] = {"-cnewer", "-cmin", "-ctime", "-mmin", \
 const arg_type primary_arg_type_arr[] = {ARG_STAT, ARG_LONG, ARG_LONG, \
     ARG_LONG, ARG_LONG, ARG_FILE_TYPE};
 
-// Global state variables for 
+// Global state variables for primaries involving time differences between file
+//   and program start.
 time_t start_time_day = 0;
 time_t start_time_min = 0;
 
 /**
- * 
+ * Sets the global values for time comparison. This must be only called once, 
+ *   no idea how to ensure that though.
  */
 void set_start_time(time_t prog_start) {
     start_time_day = prog_start / SEC_PER_DAY;
@@ -29,6 +31,7 @@ void set_start_time(time_t prog_start) {
 }
 
 /**
+ * eval function for primary cnewer
  */
 bool eval_cnewer(struct stat *f_stat, struct stat *o_stat) {
     if (f_stat->st_ctim.tv_sec - o_stat->st_ctim.tv_sec > 0) {
@@ -42,6 +45,7 @@ bool eval_cnewer(struct stat *f_stat, struct stat *o_stat) {
 }
 
 /**
+ * eval function for primary cmin
  */
 bool eval_cmin(struct stat *f_stat, long n) {
     time_t min = f_stat->st_ctim.tv_sec / SEC_PER_MIN;
@@ -52,6 +56,7 @@ bool eval_cmin(struct stat *f_stat, long n) {
 }
 
 /**
+ * eval function for primary ctime
  */
 bool eval_ctime(struct stat *f_stat, long n) {
     time_t day = f_stat->st_ctim.tv_sec / SEC_PER_DAY;
@@ -62,6 +67,7 @@ bool eval_ctime(struct stat *f_stat, long n) {
 }
 
 /**
+ * eval function for primary mmin
  */
 bool eval_mmin(struct stat *f_stat, long n) {
     time_t min = f_stat->st_mtim.tv_sec / SEC_PER_MIN;
@@ -72,6 +78,7 @@ bool eval_mmin(struct stat *f_stat, long n) {
 }
 
 /**
+ * eval function for primary mtime
  */
 bool eval_mtime(struct stat *f_stat, long n) {
     time_t day = f_stat->st_mtim.tv_sec / SEC_PER_DAY;
@@ -82,6 +89,7 @@ bool eval_mtime(struct stat *f_stat, long n) {
 }
 
 /**
+ * eval function for primary type
  */
 bool eval_type(struct stat *f_stat, char t) {
     if (get_type_char(f_stat->st_mode) == t) {
@@ -91,6 +99,7 @@ bool eval_type(struct stat *f_stat, char t) {
 }
 
 /**
+ * Returns mode characters the mega-sinful way.
  */
 char get_type_char(mode_t mode) {
     if (S_ISBLK(mode)) {

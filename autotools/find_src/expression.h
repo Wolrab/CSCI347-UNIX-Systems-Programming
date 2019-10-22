@@ -46,16 +46,24 @@ struct primary_node {
 // Creates a full expression from an array of argument strings.
 // Do not pass this function any expression pointer value that points to any
 //   initialized data. It will be overwritten and lost.
-// On error, this function will perform swaps between indexes of expr_args to
-//   to put invalid primaries at expr_args[0] and invalid primary arguments
-//   at expr_args[1]. Do not pass an array to expr_args whose order must be
-//   preserved.
+// On error, this function will perform swaps between indexes of expr_args for
+//   effective error return to the calling function. Do not give this function
+//   an array you would like to keep ordered between calls.
 expr_err expression_create(expression_t *expression, char **expr_args, \
     int expr_args_size);
 
+// Helper function for handling permutations casewise depending on the error.
+void permutate_args(expr_err err, char **expr_args, int i);
+
+// Parse the given args and create and fill a primary node.
 expr_err expression_parse_primary_node(char **expr_args, int expr_args_size, \
     int expr_arg_i, primary_node **node);
 
+// Fill the fully allocated primary node
+expr_err primary_node_fill(primary_t primary, char *primary_arg_str, \
+        primary_node *node);
+
+// Evaluates a full expression object, returning true if all primaries are true
 bool expression_evaluate(expression_t *expression, struct stat *f_stat);
 
 // Appends node to expression.
@@ -65,8 +73,7 @@ void expression_append(expression_t *expression, primary_node *node);
 void expression_delete(expression_t *expression);
 
 // Finds and sets the primary eval func for node
-// No error checking as primary value assumed to have been got from get_primary
-void set_primary_eval_func(primary_t primary, primary_node *node);
+expr_err set_primary_eval_func(primary_t primary, primary_node *node);
 
 // Gets the value of a primary from its raw string representation.
 expr_err get_primary(char *expr_element, primary_t *primary);

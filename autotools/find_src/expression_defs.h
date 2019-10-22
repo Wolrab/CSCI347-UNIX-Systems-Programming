@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <time.h>
 
+// Argument types
 typedef enum arg_type arg_type;
 enum arg_type {
     ARG_LONG = 0,
@@ -14,6 +15,7 @@ enum arg_type {
 
 extern const char *const valid_file_types;
 
+// Primaries available
 typedef enum primary primary_t;
 enum primary {
     CNEWER = 0,

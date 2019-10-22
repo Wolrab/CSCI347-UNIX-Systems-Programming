@@ -2,12 +2,13 @@
 
 /**
  * Implementation of an increasing-order linked list for holding file names 
- *   and stat information.
+ *   and stat information. Overhauled from last time to provide a very 
+ *   straightforward sorting solution.
  */
 
 /**
  * Initializes a linked list with increasing order. If l is null, a new list
- *   is created
+ *   is created.
  * Returns: The initialized list on success, NULL if malloc fails.
  */
 list* list_init(list *l) {
@@ -30,7 +31,9 @@ list* list_init(list *l) {
  * Creates and adds a node, maintaining increasing order between all nodes 
  *   after the addition.
  * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails and
- *   LIST_ERR_DUP_ENTRY if the created node already exists in the list.
+ *   LIST_ERR_DUP_ENTRY if the created node already exists in the list. Due to
+ *   the structure of my error checking, it is left to the user of this 
+ *   function to free their reference to f_stat.
  */
 list_err list_add_ordered(list *l, char *f_name, struct stat *f_stat) {
     node *curr, *n;
@@ -100,8 +103,8 @@ void list_delete(list *l) {
 }
 
 /**
- * Fills the given data struct with data and handles copying of values where
- *   that is needed.
+ * Fills the given data struct with data and copies f_name, filling in the 
+ *   stat field directly with the reference given.
  * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails.
  */
 list_err node_fill_data(struct data_s *data, char *f_name, struct stat *f_stat) {

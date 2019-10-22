@@ -1,7 +1,9 @@
-#include "path_list.h"
+#include "list.h"
 
 /**
- * Implementation of an increasing-order linked list for holding path names
+ * Implementation of an increasing-order linked list for holding path names.
+ * Almost identical to ls implementation just removed a couple of unecessary 
+ *   fields
  */
 
 /**

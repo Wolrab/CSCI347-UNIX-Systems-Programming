@@ -14,6 +14,13 @@ const bool ls_err_errno[] = {false, true, true, true, true, false};
 /** 
  * The ls program. Prints all entries of current directory to stdout and exits.
  *   Output style is modified by options passed into the program.
+ * After a call to ls, if any error occurs, the errno value is preserved and 
+ *   the program unwinds all the way back to main. In that respect a lot of 
+ *   the globals are simply QOL enhancements, but they are so tied into the 
+ *   whole system there's really no going back. This program flow must be 
+ *   maintained for safety and to not feed ls_perror garbage.
+ * The return value is basically a flag alerting the calling function a global
+ *   error value has been set.
  * Returns: 0 on success, 1 on error.
  */
 int main(int argc, char **argv) {
@@ -67,8 +74,8 @@ int ls(char *path) {
 }
 
 /**
- * Gets the names of all the files in directory stream d and places
- *   them in dir_entries.
+ * Opens a directory entry and puts all values from it into dir_entries through
+ *   a call to read_dir_stream.
  * Returns: 0 if successful, 1 on error and sets ls_err_state appropriately.
  */
 int get_entries(const char *path, list *dir_entries) {
@@ -111,7 +118,6 @@ int read_dir_stream(DIR *d, const char *path, list *dir_entries) {
         if (option_l) {
             ent_stat = get_stat(ent->d_name, path);
             if (ent_stat == NULL) {
-                ret = 1;
                 goto cleanup_mid_loop;
             }
         }
@@ -122,11 +128,9 @@ int read_dir_stream(DIR *d, const char *path, list *dir_entries) {
             break;
         case LIST_ERR_MALLOC:
             set_ls_err(LS_ERR_MALLOC, NULL);
-            ret = 1;
             goto cleanup_mid_loop;
         case LIST_ERR_DUP_ENTRY:
             set_ls_err(LS_ERR_DUP_ENTRY, ent->d_name);
-            ret = 1;
             goto cleanup_mid_loop;
         }
         
@@ -143,7 +147,7 @@ int read_dir_stream(DIR *d, const char *path, list *dir_entries) {
     if (ent_stat != NULL) {
         free(ent_stat);
     }
-    return ret;
+    return 1;
 }
 
 /**
@@ -235,7 +239,7 @@ int fill_stat_out(struct stat_out_s *stat_out, struct data_s *data) {
 
     ret = get_usr_str(&(stat_out->usr_str), data->f_stat->st_uid);
     if (ret) {
-        goto cleanup_none;
+        goto exit;
     }
 
     ret = get_grp_str(&(stat_out->grp_str), data->f_stat->st_gid);
@@ -255,7 +259,7 @@ int fill_stat_out(struct stat_out_s *stat_out, struct data_s *data) {
     free(stat_out->grp_str);
     cleanup_usr:
     free(stat_out->usr_str);
-    cleanup_none:
+    exit:
     return ret;
 }
 
