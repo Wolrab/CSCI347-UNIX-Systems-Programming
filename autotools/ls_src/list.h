@@ -32,11 +32,14 @@ struct node_s {
 //   appropriately initializes l.
 list* list_init(list *l);
 
-// Creates and adds a new node to l with the given data. Handles any necessary
-//   copying.
-// In the event of an error, the f_stat field is not freed and the user must
-//   detect the error and handle its deletion.
-list_err list_add_ordered(list *l, char *f_name, struct stat *f_stat);
+// TODO: Comment
+node* list_create_node(char *f_name, struct stat *f_stat);
+
+// TODO: Comment
+list_err list_insert_ordered(list *l, node *n);
+
+// TODO: Comment
+list_err node_set_data(node *n, char *f_name, struct stat *f_stat);
 
 // Deletes l and points it to NULL.
 // All members of l, whether they were copied by l or their reference was
@@ -44,10 +47,6 @@ list_err list_add_ordered(list *l, char *f_name, struct stat *f_stat);
 //   references to data internal to this list after it is deleted as their  
 //   values will no longer hold meaning.
 void list_delete(list *l);
-
-// Helper function for list_add_ordered.
-// Fills the data struct.
-list_err node_fill_data(struct data_s *data, char *f_name, struct stat *f_stat);
 
 // Deletes n and all its entries.
 void node_delete(node *n);

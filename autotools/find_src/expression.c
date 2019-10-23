@@ -11,9 +11,9 @@
  *   contained within the expression and no reference to the options is needed
  *   again.
  * Error checking is done with values passed back, I have learned my leason 
- *   about global nonesense (for error checking at least...)
+ *   about global nonesense.
  * Simple for now, in the future when more complex expressions are added 
- *   lots of the basic structure of the linked lists can probably be turned 
+ *   lots of the basic structure of the linked lists can (presumably) be turned
  *   into some kind of neat little parse tree.
  */
 
@@ -37,7 +37,7 @@ expr_err expression_create(expression_t *expression, char **expr_args, \
     while (i < expr_args_size) {
         ret = expression_parse_primary_node(expr_args, expr_args_size, \
             i, &node);
-        if (ret) {
+        if (ret != EXPR_ERR_NONE) {
             permutate_args(ret, expr_args, i);
             goto cleanup_list;
         }
@@ -98,7 +98,7 @@ expr_err expression_parse_primary_node(char **expr_args, int expr_args_size, \
     }
 
     ret = primary_node_fill(primary, expr_args[expr_arg_i+1], *node);
-    if (ret) {
+    if (ret != EXPR_ERR_NONE) {
         goto cleanup;
     }
     return ret;
@@ -125,7 +125,7 @@ expr_err primary_node_fill(primary_t primary, char *primary_arg_str, \
     node->type = primary_arg_type;
     node->next = NULL;
     ret = set_primary_eval_func(primary, node);
-    if (ret) {
+    if (ret = EXPR_ERR_NONE) {
         return ret;
     }
 

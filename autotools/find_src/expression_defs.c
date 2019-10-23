@@ -9,11 +9,6 @@ const char *const primary_str_arr[] = {"-cnewer", "-cmin", "-ctime", "-mmin", \
 const arg_type primary_arg_type_arr[] = {ARG_STAT, ARG_LONG, ARG_LONG, \
     ARG_LONG, ARG_LONG, ARG_FILE_TYPE};
 
-// Global state variables for primaries involving time differences between file
-//   and program start.
-time_t start_time_day = 0;
-time_t start_time_min = 0;
-
 /**
  * Sets the global values for time comparison. This must be only called once, 
  *   no idea how to ensure that though.

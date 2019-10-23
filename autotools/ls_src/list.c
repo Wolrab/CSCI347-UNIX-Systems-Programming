@@ -28,32 +28,40 @@ list* list_init(list *l) {
 }
 
 /**
- * Creates and adds a node, maintaining increasing order between all nodes 
- *   after the addition.
- * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails and
- *   LIST_ERR_DUP_ENTRY if the created node already exists in the list. Due to
- *   the structure of my error checking, it is left to the user of this 
- *   function to free their reference to f_stat.
+ * Creates a node with the given data.
+ * TODO: RETURN
  */
-list_err list_add_ordered(list *l, char *f_name, struct stat *f_stat) {
-    node *curr, *n;
+node* list_create_node(char *f_name, struct stat *f_stat) {
+    node *n;
     list_err ret = LIST_ERR_NONE; 
-    int ord = 0;
 
     errno = 0;
     n = malloc(sizeof(node));
     if (n == NULL) {
-        return LIST_ERR_MALLOC;
+        return NULL;
     }
 
-    ret = node_fill_data(&(n->data), f_name, f_stat);
+    ret = node_set_data(n, f_name, f_stat);
     switch (ret) {
     case LIST_ERR_NONE:
         break;
     case LIST_ERR_MALLOC:
         free(n);
-        return ret;
+        n = NULL;
     }
+
+    return n;
+}
+
+/**
+ * Adds n to the list that maintains the increasing order invariant of the list.
+ * Returns: LIST_ERR_NONE on success and LIST_ERR_DUP_ENTRY if n already 
+ *   exists in the list.
+ */
+list_err list_insert_ordered(list *l, node *n) {
+    node *curr;
+    list_err ret = LIST_ERR_NONE; 
+    int ord = 0;
 
     if (*l == NULL) {
         *l = n;
@@ -61,30 +69,49 @@ list_err list_add_ordered(list *l, char *f_name, struct stat *f_stat) {
         return ret;
     }
 
-    curr = *l;
-    ord = node_order(n, curr);
+    ord = node_order(n, *l);
     if (ord < 0) {
-        n->next = curr;
+        n->next = *l;
         *l = n;
         return ret;
     }
 
+    curr = *l;
     ord = node_order(n, curr->next);
     while (ord > 0) {
         curr = curr->next;
         ord = node_order(n, curr->next);
     }
     if (ord == 0) {
-        free(n->data.f_name);
-        free(n->data.f_name_lower);
-        free(n);
         ret = LIST_ERR_DUP_ENTRY;
     }
-    else {
-        n->next = curr->next;
-        curr->next = n;
-    }
+    n->next = curr->next;
+    curr->next = n;
     return ret;
+}
+
+/**
+ * Fills n with data, making copies of f_name while leaving f_stat as that data
+ *   is already created and managed by the user.
+ * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails.
+ */
+list_err node_set_data(node *n, char *f_name, struct stat *f_stat) {
+    errno = 0;
+    n->data.f_name = malloc(strlen(f_name) + 1);
+    if (n->data.f_name == NULL && errno) {
+        return LIST_ERR_MALLOC;
+    }
+    memcpy(n->data.f_name, f_name, strlen(f_name) + 1);
+
+    n->data.f_name_lower = lower_string_cpy(f_name);
+    if (n->data.f_name_lower && errno) {
+        free(n->data.f_name);
+        return LIST_ERR_MALLOC;
+    }
+
+    n->data.f_stat = f_stat;
+    n->next = NULL;
+    return LIST_ERR_NONE;
 }
 
 /**
@@ -100,29 +127,6 @@ void list_delete(list *l) {
         curr = next;
     }
     *l = NULL;
-}
-
-/**
- * Fills the given data struct with data and copies f_name, filling in the 
- *   stat field directly with the reference given.
- * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails.
- */
-list_err node_fill_data(struct data_s *data, char *f_name, struct stat *f_stat) {
-    errno = 0;
-    data->f_name = malloc(strlen(f_name) + 1);
-    if (data->f_name == NULL && errno) {
-        return LIST_ERR_MALLOC;
-    }
-    memcpy(data->f_name, f_name, strlen(f_name) + 1);
-
-    data->f_name_lower = lower_string_cpy(f_name);
-    if (data->f_name_lower && errno) {
-        free(data->f_name);
-        return LIST_ERR_MALLOC;
-    }
-
-    data->f_stat = f_stat;
-    return LIST_ERR_NONE;
 }
 
 /**
