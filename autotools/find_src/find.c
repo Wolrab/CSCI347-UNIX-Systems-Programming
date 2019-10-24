@@ -12,6 +12,7 @@ int main(int argc, char **argv) {
     expression_t expression;
     expr_err e_err = EXPR_ERR_NONE;
     find_err f_err = FIND_ERR_NONE;
+    int ret = 0;
 
     if (check_args(argc, argv) < 0) {
         return 1;
@@ -29,7 +30,7 @@ int main(int argc, char **argv) {
     f_err = find(&(argv[1]), &expression);
     if (f_err) {
         find_perror(f_err, argv[0]);
-        
+        ret = 1;
     }
     expression_delete(&expression);
 
@@ -37,10 +38,11 @@ int main(int argc, char **argv) {
 }
 
 /**
- * Itterates through a file tree starting at file, evaluating each new path 
- *   with expression and adding to path_list for each path that evaluates to
- *   true.
- * Returns: 0 on success, 1 on error with an associated errno value
+ * Does almost all the work of find. With the expression already parsed this
+ *   just needs to create necessary storage and objects for descending the 
+ *   tree and output the results once that's done.
+ * Returns: FIND_ERR_NONE on success, and FIND_ERR_FTREE or FIND_ERR_MALLOC
+ *   otherwise.
  */
 find_err find(char **file, expression_t *expression) {
     FTS *file_tree;
@@ -65,7 +67,12 @@ find_err find(char **file, expression_t *expression) {
 }
 
 /**
- * 
+ * Descends the file tree, evaluating each file with expression and adding
+ *   every file that evaluates to true to path_list. Every call to fts_read
+ *   returns a struct with the files stat's included, with the current
+ *   small selection of primaries passing this file stat is good enough.
+ * Returns: FIND_ERR_NONE on success, and FIND_ERR_MALLOC if a node fails to
+ *   be allocated
  */
 find_err descend_tree(FTS *file_tree, expression_t *expression, list *path_list) {
     FTSENT *entry;
@@ -143,5 +150,12 @@ void expression_perror(expr_err err, char *pname) {
  * Basic error output for find
  */
 void find_perror(find_err err, char *pname) {
-
+    switch (err) {
+    case FIND_ERR_NONE:
+        break;
+    case FIND_ERR_MALLOC:
+        perror(pname);
+    case FIND_ERR_FTREE:
+        perror(pname);
+    }
 }

@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+#
+
+TEMP=$(mktemp -d)
+WORK=$(pwd)
+
+mkdir ${TEMP}/A
+touch ${TEMP}/B
+mkdir ${TEMP}/A/C
+touch ${TEMP}/A/D
+
+cd ${TEMP}
+${WORK}/find . -type d > B
+${WORK}/find . -type f >> B
+
+cat <<EOF | diff B -
+.
+./A
+./A/C
+./A/D
+./B
+EOF
+status=$?
+
+cd ${WORK}
+rm -rf ${TEMP}
+
+exit ${status}

@@ -19,7 +19,8 @@ enum find_err {
 };
 
 // Iterates through the file tree originating from file and evaluating paths 
-//   against the expression.
+//   against the expression. Prints all files that the expression evaluated
+//   to true once it's done.
 find_err find(char **file, expression_t *expression);
 
 // Decends the tree, adding to path_list given the evaluation of expression
@@ -34,5 +35,7 @@ int check_args(int argc, char **argv);
 
 // Error output for errors returned from expression_create.
 void expression_perror(expr_err err, char *pname);
+
+void find_perror(find_err err, char *pname);
 
 #endif /* __FIND_H */

@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+#
+
+TEMP=$(mktemp -d)
+WORK=$(pwd)
+
+touch ${TEMP}/A
+touch ${TEMP}/B
+chmod 755 ${TEMP}/B
+sleep 1
+chmod 755 ${TEMP}/A
+
+cd ${TEMP}
+${WORK}/find . -cnewer B > A
+
+cat <<EOF | diff A -
+./A
+EOF
+status=$?
+
+cd ${WORK}
+rm -rf ${TEMP}
+
+exit ${status}
