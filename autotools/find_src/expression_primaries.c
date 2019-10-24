@@ -115,9 +115,6 @@ int get_primary_globals(primary_args_g *global_args) {
 /**
  * Takes a primary, its arg value, and globals, and returns its truth value
  *   for the given f_stat.
- * Note: The mapping from primary_t to arg_type is not done here. Since the
- *   function calls are manually broken up via a switch statement anyways, it
- *   would have just added extra complexity to break it up even further.
  * Returns: true if primary evaluates to true, false if it doesn't or if the
  *   primary does not exist.
  */

@@ -25,8 +25,6 @@
  *   must have both the name of the primary and an argument, it creates
  *   each primary by incrementing by two arguments at a time, parsing them and
  *   adding them to the expression.
- * The user is expected to have initialized an expression_t object that
- *   expression points to.
  * Returns: EXPR_ERR_NONE on success, and any other expr_err value if some
  *   part of the parsing fails.
  */
@@ -101,7 +99,7 @@ expr_err expression_create_primary(primary_node **node, char *primary_s, \
 }
 
 /**
- * Adds the given primary node to expression by appending it to the final node
+ * Adds the given primary_node to expression by appending it to the final node
  *   in expression, preserving the order the expression will be evaluated in.
  */
 void expression_add_primary(expression_t *expression, primary_node *node) {

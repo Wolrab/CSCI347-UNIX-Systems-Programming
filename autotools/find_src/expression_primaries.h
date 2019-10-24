@@ -36,6 +36,7 @@ enum arg_type {
 };
 extern const arg_type primary_arg_type[];
 
+// Holds the arg for any given primary
 union primary_arg {
     long long_arg;
     char char_arg;

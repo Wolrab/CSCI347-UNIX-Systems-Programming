@@ -1,11 +1,13 @@
 /**
+ * find program. Recursively searches a given file tree, and given an expression
+ *   prints all files that make the expression return true.
  */
 #include "find.h"
 
 /**
- * This main does mostly error checking. Creates the expression, sets the
- *   necessary globals and then calls find to start itterating through the 
- *   file tree.
+ * Does basic error checking, creates an expression from the available args,
+ *   and then calls find to do the rest. Calls the appropriate *_perror
+ *   function if necessary.
  * Returns: 0 on success, 1 on error.
  */
 int main(int argc, char **argv) {
@@ -69,10 +71,10 @@ find_err find(char **file, expression_t *expression) {
 /**
  * Descends the file tree, evaluating each file with expression and adding
  *   every file that evaluates to true to path_list. Every call to fts_read
- *   returns a struct with the files stat's included, with the current
- *   small selection of primaries passing this file stat is good enough.
+ *   gives the struct of the file back which then becomes the input into
+ *   expression_evaluate.
  * Returns: FIND_ERR_NONE on success, and FIND_ERR_MALLOC if a node fails to
- *   be allocated
+ *   be allocated.
  */
 find_err descend_tree(FTS *file_tree, expression_t *expression, list *path_list) {
     FTSENT *entry;
@@ -152,7 +154,7 @@ void expression_perror(expr_err err, char *pname) {
 }
 
 /**
- * Basic error output for find
+ * Basic error output for find.
  */
 void find_perror(find_err err, char *pname) {
     switch (err) {
