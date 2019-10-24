@@ -2,13 +2,12 @@
 
 /**
  * Implementation of an increasing-order linked list for holding file names 
- *   and stat information. Overhauled from last time to provide a very 
- *   straightforward sorting solution.
+ *   and stat information. This increasing-order property is ensured by creating
+ *   nodes through list_create_node and adding them with list_insert_ordered.
  */
 
 /**
- * Initializes a linked list with increasing order. If l is null, a new list
- *   is created.
+ * Initializes a linked list. If l is null, a new list is created.
  * Returns: The initialized list on success, NULL if malloc fails.
  */
 list* list_init(list *l) {
@@ -28,8 +27,10 @@ list* list_init(list *l) {
 }
 
 /**
- * Creates a node with the given data.
- * TODO: RETURN
+ * Creates a node with the given data. f_name is copied into two strings, one
+ *   being an all-lowercase variant for sorting. The user is expected to ensure
+ *   the reference to f_stat is valid for the entire lifetime of the list.
+ * Returns: The new node on success, NULL otherwise.
  */
 node* list_create_node(char *f_name, struct stat *f_stat) {
     node *n;
@@ -56,7 +57,8 @@ node* list_create_node(char *f_name, struct stat *f_stat) {
 /**
  * Adds n to the list that maintains the increasing order invariant of the list.
  * Returns: LIST_ERR_NONE on success and LIST_ERR_DUP_ENTRY if n already 
- *   exists in the list.
+ *   exists in the list, though in that case the duplicate entry still will be
+ *   stored.
  */
 list_err list_insert_ordered(list *l, node *n) {
     node *curr;
@@ -65,7 +67,6 @@ list_err list_insert_ordered(list *l, node *n) {
 
     if (*l == NULL) {
         *l = n;
-        n->next = NULL;
         return ret;
     }
 
@@ -91,8 +92,8 @@ list_err list_insert_ordered(list *l, node *n) {
 }
 
 /**
- * Fills n with data, making copies of f_name while leaving f_stat as that data
- *   is already created and managed by the user.
+ * Fills n's data field, handling allocation and copying of f_name into
+ *   data.f_name and data.f_name_lower. f_stat is directly stored.
  * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails.
  */
 list_err node_set_data(node *n, char *f_name, struct stat *f_stat) {
@@ -115,7 +116,7 @@ list_err node_set_data(node *n, char *f_name, struct stat *f_stat) {
 }
 
 /**
- * Deletes all nodes of a list and points the list to NULL
+ * Deletes all nodes of l and points the l to NULL.
  */
 void list_delete(list *l) {
     node *curr, *next;
@@ -130,7 +131,7 @@ void list_delete(list *l) {
 }
 
 /**
- * Deletes a given node.
+ * Deletes n and all its entries.
  */
 void node_delete(node *n) {
     free(n->data.f_name);
@@ -141,8 +142,9 @@ void node_delete(node *n) {
 
 /**
  * Compares order between two nodes. NULL is defined to have greater order 
- *   than any other node so the increasing-order list invariant is preserved.
- * Returns: > 0 if n1 > n2, < 0 if n1 < n2, and 0 if n1 == n2.
+ *   than any other node so the increasing-order list invariant is preserved
+ *   in all cases.
+ * Returns: >0 if n1 > n2, <0 if n1 < n2, and 0 if n1 == n2.
  */
 int node_order(node *n1, node *n2) {
     int ret = 0;

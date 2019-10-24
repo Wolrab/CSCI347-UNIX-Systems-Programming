@@ -1,5 +1,6 @@
 #include "ls.h"
 
+// Basic error message defines to make ls_perror easier on the eyes
 const char *const ls_err_msg[] = {
     "no error",
     "memory allocation error",
@@ -13,7 +14,10 @@ const char *const ls_err_msg[] = {
     "group name not found"
 };
 
-/** TODO: COMMENT
+/** 
+ * Entry point for ls. Ensures arguments are defined and then calls ls
+ *   functionality on the CWD. If an error occurs, its message is then printed.
+ * Returns: 0 on success, >0 on error
  */
 int main(int argc, char **argv) {
     ls_err ret = LS_ERR_NONE;
@@ -34,7 +38,8 @@ int main(int argc, char **argv) {
 
 /**
  * Prints the entries of the directory specified by path to stdout.
- * Returns: TODO: return
+ * Returns: LS_ERR_NONE on success, and on error an ls_err value corresponding
+ *   to the type of error.
  */
 ls_err ls(char *path) {
     list dir_entries;
@@ -64,7 +69,8 @@ ls_err ls(char *path) {
 /**
  * Open and iterates through a directory stream at path, filling dir_entries 
  *   with each entry.
- * Returns: TODO: RETURN
+ * Returns: LS_ERR_NONE on success, and on error an ls_err value corresponding
+ *   to the type of error.
  */
 ls_err get_entries(const char *path, list *dir_entries) {
     DIR *d = NULL;
@@ -87,7 +93,7 @@ ls_err get_entries(const char *path, list *dir_entries) {
         }
 
         ret = parse_entry(ent, path, dir_entries);
-        if (ret != LS_ERR_NONE || ret != LS_ERR_DUP_ENTRY) {
+        if (ret != LS_ERR_NONE && ret != LS_ERR_DUP_ENTRY) {
             return ret;
         }
 
@@ -102,7 +108,11 @@ ls_err get_entries(const char *path, list *dir_entries) {
     return ret;
 }
 
-/** TODO: COMMENT
+/** 
+ * Parses the data in ent and adds a new node with the parsed data into 
+ *   dir_entries.
+ * Returns: LS_ERR_NONE on success, and on error an ls_err value corresponding
+ *   to the type of error.
  */
 ls_err parse_entry(struct dirent *ent, const char *path, \
         list *dir_entries) {
@@ -126,7 +136,7 @@ ls_err parse_entry(struct dirent *ent, const char *path, \
             return LS_ERR_MALLOC;
         }
 
-        if (stat(stat_path, ent_stat) < 0) {
+        if (lstat(stat_path, ent_stat) < 0) {
             free(ent_stat);
             return LS_ERR_STAT;
         }
@@ -145,7 +155,11 @@ ls_err parse_entry(struct dirent *ent, const char *path, \
     return ret;
 }
 
-/** TODO: COMMENT
+/** 
+ * Gets the full path of f_name given path and a buffer to store the 
+ *   new path.
+ * Returns: LS_ERR_NONE on success and LS_ERR_PATH_OVERFLOW if the concatenated
+ *   path would overflow path_buf.
  */
 ls_err get_full_path(char *path_buf, int path_buf_len, const char *f_name, \
         const char *path) {
@@ -179,8 +193,10 @@ void output_ent_names(list *dir_entries) {
 }
 
 /**
- * Outputs the filenames and stat information in dir_entries to stdout.
- * Returns: TODO: RETURN
+ * Outputs the filenames and stat information in dir_entries to stdout. asserts
+ *   that each entry has a non-null f_stat field.
+ * Returns: LS_ERR_NONE on success, and any string-conversion related error if
+ *   any conversion failed.
  */
 ls_err output_ent_stats(list *dir_entries) {
     struct stat_out_s stat_out;
@@ -192,6 +208,8 @@ ls_err output_ent_stats(list *dir_entries) {
     
     curr = *dir_entries;
     while (curr != NULL) {
+        assert(curr->data.f_stat != NULL);
+
         ret = fill_stat_out(&stat_out, &(curr->data));
         if (ret != LS_ERR_NONE) {
             return ret;
@@ -212,7 +230,8 @@ ls_err output_ent_stats(list *dir_entries) {
 
 /**
  * Fills stat_out using the fields given in data.
- * Returns: TODO: RETURN
+ * Returns: LS_ERR_NONE on success, otherwise any of the errors from the 
+ *   get_*_str functions and all data is freed.
  */
 ls_err fill_stat_out(struct stat_out_s *stat_out, struct data_s *data) {
     ls_err ret = LS_ERR_NONE;
@@ -246,7 +265,7 @@ ls_err fill_stat_out(struct stat_out_s *stat_out, struct data_s *data) {
 }
 
 /**
- * Fills a fixed sized character sequence representing a file's mode.
+ * Fills a fixed sized character sequence representing important data from mode.
  */
 void get_mode_str(char *mode_s, mode_t mode) {
     if (S_ISREG(mode))
@@ -277,8 +296,10 @@ void get_mode_str(char *mode_s, mode_t mode) {
 }
 
 /**
- * Finds a user name given an uid.
- * Returns: TODO: RETURN
+ * Allocates and sets the value pointed at by usr_str to be the user name 
+ *   of uid.
+ * Returns: LS_ERR_NONE on success, LS_ERR_USR_NOT_FOUND if the user name 
+ *   wasn't found and LS_ERR_MALLOC if malloc fails.
  */
 ls_err get_usr_str(char **usr_str, uid_t uid) {
     struct passwd *passwd_ent;
@@ -301,9 +322,10 @@ ls_err get_usr_str(char **usr_str, uid_t uid) {
 }
 
 /**
- * Finds a group name given a gid. If the group name cannot be found, the value
- *   of gid is stored in grp instead.
- * Returns: TODO: RETURN
+ * Allocates and sets the value pointed at by grp_str to be the group name 
+ *   of gid.
+ * Returns: LS_ERR_NONE on success, LS_ERR_GRP_NOT_FOUND if the group name 
+ *   wasn't found and LS_ERR_MALLOC if malloc fails.
  */
 ls_err get_grp_str(char **grp_str, gid_t gid) {
     struct group *group_ent;
@@ -327,7 +349,8 @@ ls_err get_grp_str(char **grp_str, gid_t gid) {
 
 /** 
  * Gets the formatted date from mtim.
- * Returns: TODO: RETURN
+ * Returns: LS_ERR_NONE on success, LS_ERR_DATE_OVERFLOW if the date could not
+ *   fit inside mtim_str.
  */
 ls_err get_mtim_str(char *mtim_str, time_t mtim) {
     struct tm *t;
@@ -348,12 +371,11 @@ ls_err get_mtim_str(char *mtim_str, time_t mtim) {
 void free_stat_out(struct stat_out_s *stat_out) {
     free(stat_out->usr_str);
     free(stat_out->grp_str);
-    free(stat_out->mtim_str);
 }
 
 /**
  * Checks argv for options and sets option flags.
- * Returns: TODO: RETURN
+ * Returns: 0 on success, -1 if an invalid option was found.
  */
 int get_options(const int argc, char **argv) {
     char opt = -1;
@@ -376,12 +398,24 @@ int get_options(const int argc, char **argv) {
     return ret;
 }
 
+/**
+ * Outputs any errors using each err's corresponding ls_err_message entry.
+ *   In standard linux fashion, the program's name is prefixed to the error 
+ *   output for clearer messages when chains of programs are piped into one
+ *   another.
+ * If errno is set, this prints using perror. This errno value should be 
+ *   associated with the err actually given, as almost all the ls_err's are
+ *   fatal and instantly break out to main with no subsequent system or 
+ *   library calls that would reset errno.
+ */
 void ls_perror(ls_err err, char *pname) {
     char str_buf[4096];
+    int err = errno;
     memcpy(str_buf, pname, strlen(pname) + 1);
     memcpy(str_buf + strlen(pname), ls_err_msg[err], \
         strlen(ls_err_msg[err]) + 1);
-    if (errno) {
+    if (err) {
+        errno = err;
         perror(str_buf);
     }
     else {

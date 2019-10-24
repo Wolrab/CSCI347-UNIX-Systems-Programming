@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-// Error defines to make returns meaningful
+// Error defines
 typedef enum list_err list_err;
 enum list_err {
     LIST_ERR_NONE = 0,
@@ -32,20 +32,24 @@ struct node_s {
 //   appropriately initializes l.
 list* list_init(list *l);
 
-// TODO: Comment
+// Creates a new node with data specified by f_name and f_stat. The user must
+//   ensure f_stat is a valid reference for the entire life of the list.
 node* list_create_node(char *f_name, struct stat *f_stat);
 
-// TODO: Comment
+// Inserts n into l while preserving increasing order of l. Duplicate nodes
+//   will be added, but this the caller will be informed of such by 
+//   LIST_ERR_DUP_ENTRY being returned.
+// If nodes are added to l by any other means than this function, then 
+//   list_insert_ordered has undefined behavior.
 list_err list_insert_ordered(list *l, node *n);
 
-// TODO: Comment
+// Sets the given data in n.
 list_err node_set_data(node *n, char *f_name, struct stat *f_stat);
 
 // Deletes l and points it to NULL.
 // All members of l, whether they were copied by l or their reference was
 //   simply held, will be deleted. The user must not be holding any 
-//   references to data internal to this list after it is deleted as their  
-//   values will no longer hold meaning.
+//   references to data internal to this list after it is deleted.
 void list_delete(list *l);
 
 // Deletes n and all its entries.
