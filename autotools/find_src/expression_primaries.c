@@ -135,6 +135,8 @@ bool primary_evaluate(primary_t primary, primary_arg *arg,\
     case TYPE:
         ret = eval_type(f_stat, arg->char_arg);
         break;
+    case PRIMARY_NUM:
+        break;
     }
     return ret;
 }

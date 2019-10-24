@@ -20,7 +20,8 @@ const char *const ls_err_msg[] = {
  * Returns: 0 on success, >0 on error
  */
 int main(int argc, char **argv) {
-    ls_err ret = LS_ERR_NONE;
+    ls_err err = LS_ERR_NONE;
+    int ret = 0;
 
     ret = get_options(argc, argv);
     if (ret < 0) {
@@ -28,9 +29,10 @@ int main(int argc, char **argv) {
         return ret;
     }
 
-    ret = ls(".");
-    if (ret != LS_ERR_NONE) {
-        ls_perror(ret, argv[0]);
+    err = ls(".");
+    if (err != LS_ERR_NONE) {
+        ls_perror(err, argv[0]);
+        ret = err;
     }
 
     return ret;

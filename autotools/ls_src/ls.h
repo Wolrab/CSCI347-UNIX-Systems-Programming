@@ -12,6 +12,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <assert.h>
+#include <limits.h>
 #include "list.h"
 
 // All valid options for ls

@@ -130,9 +130,14 @@ int check_args(int argc, char **argv) {
  */
 void expression_perror(expr_err err, char *pname) {
     switch(err) {
+    case EXPR_ERR_NONE:
+        break;
     case EXPR_ERR_MALLOC:
         perror(pname);
         break;
+    case EXPR_ERR_GLOBALS:
+        fprintf(stderr, "%s: could not get required program state info\n", \
+            pname);
     case EXPR_ERR_PRIMARY:
         fprintf(stderr, "%s: invalid primary\n", \
             pname);
