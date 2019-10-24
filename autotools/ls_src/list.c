@@ -2,7 +2,7 @@
 
 /**
  * Implementation of an increasing-order linked list for holding file names 
- *   and stat information. This increasing-order property is ensured by creating
+ *   and stat information. The increasing-order property is ensured by creating
  *   nodes through list_create_node and adding them with list_insert_ordered.
  */
 

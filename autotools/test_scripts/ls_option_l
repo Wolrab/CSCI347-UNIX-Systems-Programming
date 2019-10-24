@@ -5,3 +5,4 @@ TEMP=$(mktemp -d)
 WORK=$(pwd)
 
 touch ${TEMP}/A
+

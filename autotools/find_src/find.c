@@ -58,24 +58,6 @@ int main(int argc, char **argv) {
 }
 
 /**
- * Used for initializing globals for evaluating expressions. Must only be 
- *   called once
- * Returns: 0 on success, -1 if clock_gettime throws an error.
- */ 
-int init_global_expression_states() {
-    struct timespec tm;
-    int ret = 0;
-
-    errno = 0;
-    ret = clock_gettime(CLOCK_REALTIME, &tm);
-    if (ret) {
-        return ret;
-    }
-    set_start_time(tm.tv_sec);
-    return ret;
-}
-
-/**
  * Itterates through a file tree starting at file, evaluating each new path 
  *   with expression and adding to path_list for each path that evaluates to
  *   true.

@@ -1,14 +1,13 @@
 #include "list.h"
 
 /**
- * Implementation of an increasing-order linked list for holding path names.
- * Almost identical to ls implementation just removed a couple of unecessary 
- *   fields
+ * Implementation of an increasing-order linked list for holding path names. 
+ *   The increasing-order property is ensured by creating nodes through 
+ *   list_create_node and adding them with list_insert_ordered.
  */
 
 /**
- * Initializes a linked list with increasing order. If l is null, a new list
- *   is created
+ * Initializes a linked list. If l is null, a new list is created.
  * Returns: The initialized list on success, NULL if malloc fails.
  */
 list* list_init(list *l) {
@@ -28,63 +27,95 @@ list* list_init(list *l) {
 }
 
 /**
- * Creates and adds a node, maintaining increasing order between all nodes 
- *   after the addition.
- * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails and
- *   LIST_ERR_DUP_ENTRY if the created node already exists in the list.
+ * Creates a node with the given data. path is copied into two strings, one
+ *   being an all-lowercase variant for sorting.
+ * Returns: The new node on success, NULL otherwise.
  */
-list_err list_add_ordered(list *l, char *path) {
-    node *curr, *n;
-    list_err ret = LIST_ERR_NONE;
-    int ord = 0;
-    
+node* list_create_node(char *path) {
+    node *n;
+    list_err ret = LIST_ERR_NONE; 
+
     errno = 0;
     n = malloc(sizeof(node));
     if (n == NULL) {
-        return LIST_ERR_MALLOC;
+        return NULL;
     }
 
-    ret = node_fill_data(&(n->data), path);
+    ret = node_set_data(n, path, f_stat);
     switch (ret) {
     case LIST_ERR_NONE:
         break;
     case LIST_ERR_MALLOC:
         free(n);
-        return ret;
+        n = NULL;
     }
+
+    return n;
+}
+
+/**
+ * Adds n to the list that maintains the increasing order invariant of the list.
+ * Returns: LIST_ERR_NONE on success and LIST_ERR_DUP_ENTRY if n already 
+ *   exists in the list, though in that case the duplicate entry still will be
+ *   stored.
+ */
+list_err list_insert_ordered(list *l, node *n) {
+    node *curr;
+    list_err ret = LIST_ERR_NONE; 
+    int ord = 0;
 
     if (*l == NULL) {
         *l = n;
-        n->next = NULL;
+        return ret;
+    }
+
+    ord = node_order(n, *l);
+    if (ord < 0) {
+        n->next = *l;
+        *l = n;
         return ret;
     }
 
     curr = *l;
-    ord = node_order(n, curr);
-    if (ord < 0) {
-        n->next = curr;
-        *l = n;
-        return ret;
-    }
-    
     ord = node_order(n, curr->next);
     while (ord > 0) {
         curr = curr->next;
         ord = node_order(n, curr->next);
     }
     if (ord == 0) {
-        node_delete(n);
         ret = LIST_ERR_DUP_ENTRY;
     }
-    else {
-        n->next = curr->next;
-        curr->next = n;
-    }
+    n->next = curr->next;
+    curr->next = n;
     return ret;
 }
 
 /**
- * Deletes all nodes of a list and points the list to NULL
+ * Fills n's data field, handling allocation and copying of path into
+ *   data.path and data.path_lower.
+ * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails.
+ */
+list_err node_set_data(node *n, char *path) {
+    errno = 0;
+    n->data.path = malloc(strlen(path) + 1);
+    if (n->data.path == NULL && errno) {
+        return LIST_ERR_MALLOC;
+    }
+    memcpy(n->data.path, path, strlen(path) + 1);
+
+    n->data.path_lower = lower_string_cpy(path);
+    if (n->data.path_lower && errno) {
+        free(n->data.path);
+        return LIST_ERR_MALLOC;
+    }
+
+    n->data.f_stat = f_stat;
+    n->next = NULL;
+    return LIST_ERR_NONE;
+}
+
+/**
+ * Deletes all nodes of l and points the l to NULL.
  */
 void list_delete(list *l) {
     node *curr, *next;
@@ -99,29 +130,7 @@ void list_delete(list *l) {
 }
 
 /**
- * Fills the given data struct with data and handles copying of values where
- *   that is needed.
- * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails.
- */
-list_err node_fill_data(struct data_s *data, char *path) {
-    errno = 0;
-    data->path = malloc(strlen(path) + 1);
-    if (data->path == NULL && errno) {
-        return LIST_ERR_MALLOC;
-    }
-    memcpy(data->path, path, strlen(path) + 1);
-
-    data->path_lower = lower_string_cpy(path);
-    if (data->path_lower && errno) {
-        free(data->path);
-        return LIST_ERR_MALLOC;
-    }
-
-    return LIST_ERR_NONE;
-}
-
-/**
- * Deletes a given node.
+ * Deletes n and all its entries.
  */
 void node_delete(node *n) {
     free(n->data.path);
@@ -131,8 +140,9 @@ void node_delete(node *n) {
 
 /**
  * Compares order between two nodes. NULL is defined to have greater order 
- *   than any other node so the increasing-order list invariant is preserved.
- * Returns: > 0 if n1 > n2, < 0 if n1 < n2, and 0 if n1 == n2.
+ *   than any other node so the increasing-order list invariant is preserved
+ *   in all cases.
+ * Returns: >0 if n1 > n2, <0 if n1 < n2, and 0 if n1 == n2.
  */
 int node_order(node *n1, node *n2) {
     int ret = 0;

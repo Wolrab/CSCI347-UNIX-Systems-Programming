@@ -6,6 +6,20 @@
 #include <stdlib.h>
 #include <errno.h>
 
+typedef struct node_s node;
+typedef node* list;
+
+struct data_s {
+    char *f_name;
+    char *f_name_lower;
+    struct stat *f_stat;
+};
+
+struct node_s {
+    struct data_s data;
+    node *next;
+};
+
 // Error defines
 typedef enum list_err list_err;
 enum list_err {
@@ -14,19 +28,6 @@ enum list_err {
     LIST_ERR_DUP_ENTRY = 2
 };
 
-struct data_s {
-    char *f_name;
-    char *f_name_lower;
-    struct stat *f_stat;
-};
-
-typedef struct node_s node;
-typedef node* list;
-
-struct node_s {
-    struct data_s data;
-    node *next;
-};
 
 // Initializes a list. If l is NULL, mallocs a new list. Otherwise 
 //   appropriately initializes l.

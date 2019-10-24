@@ -1,12 +1,25 @@
-#ifndef __PATH_LIST_H
-#define __PATH_LIST_H
+#ifndef __LIST_H
+#define __LIST_H
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <errno.h>
 
-// Error defines to make returns meaningful
+typedef struct node_s node;
+typedef node* list;
+
+struct data_s {
+    char *path;
+    char *path_lower;
+};
+
+struct node_s {
+    struct data_s data;
+    node *next;
+};
+
+// Error defines
 typedef enum list_err list_err;
 enum list_err {
     LIST_ERR_NONE = 0,
@@ -14,33 +27,30 @@ enum list_err {
     LIST_ERR_DUP_ENTRY = 2
 };
 
-struct data_s {
-    char *path;
-    char *path_lower;
-};
-
-typedef struct node_s node;
-typedef node* list;
-
-struct node_s {
-    struct data_s data;
-    node *next;
-};
 
 // Initializes a list. If l is NULL, mallocs a new list. Otherwise 
 //   appropriately initializes l.
 list* list_init(list *l);
 
-// Creates and adds a new node to l with the given data. Handles any necessary
-//   copying.
-list_err list_add_ordered(list *l, char *path);
+// Creates a new node with data specified by f_name and f_stat. The user must
+//   ensure f_stat is a valid reference for the entire life of the list.
+node* list_create_node(char *path);
+
+// Inserts n into l while preserving increasing order of l. Duplicate nodes
+//   will be added, but this the caller will be informed of such by 
+//   LIST_ERR_DUP_ENTRY being returned.
+// If nodes are added to l by any other means than this function, then 
+//   list_insert_ordered has undefined behavior.
+list_err list_insert_ordered(list *l, node *n);
+
+// Sets the given data in n.
+list_err node_set_data(node *n, char *path);
 
 // Deletes l and points it to NULL.
+// All members of l, whether they were copied by l or their reference was
+//   simply held, will be deleted. The user must not be holding any 
+//   references to data internal to this list after it is deleted.
 void list_delete(list *l);
-
-// Helper function for list_add_ordered.
-// Fills the data struct.
-list_err node_fill_data(struct data_s *data, char *path);
 
 // Deletes n and all its entries.
 void node_delete(node *n);
@@ -52,4 +62,4 @@ int node_order(node *n1, node *n2);
 //   lowercase form.
 char* lower_string_cpy(char *s);
 
-#endif /* __PATH_LIST_H */
+#endif /* __LIST_H */

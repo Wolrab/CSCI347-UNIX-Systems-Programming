@@ -8,11 +8,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "list.h"
-#include "expression_defs.h"
 #include "expression.h"
-
-// Sets necessary global values for expression
-int init_global_expression_states();
 
 // Iterates through the file tree originating from file and evaluating paths 
 //   against the expression.

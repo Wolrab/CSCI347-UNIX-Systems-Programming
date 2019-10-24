@@ -29,10 +29,6 @@ enum primary {
 extern const char *const primary_str_arr[];
 extern const arg_type primary_arg_type_arr[];
 
-// Start time of find, rounded up to the nearest day/min.
-extern time_t start_time_day;
-extern time_t start_time_min;
-
 #define SEC_PER_DAY 86400
 #define SEC_PER_MIN 60
 
