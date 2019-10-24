@@ -1,3 +1,5 @@
+/**
+ */
 #include "find.h"
 
 /**
@@ -55,12 +57,10 @@ find_err find(char **file, expression_t *expression) {
         return FIND_ERR_FTREE;
     }
     ret = descend_tree(file_tree, expression, &path_list);
-    if (ret == FIND_ERR_MALLOC) {
-        goto exit;
+    if (ret == FIND_ERR_NONE) {
+        output_path_list(&path_list);
     }
-    output_path_list(&path_list);
     
-    exit:
     fts_close(file_tree);
     list_delete(&path_list);
     return ret;

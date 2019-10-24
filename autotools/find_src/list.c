@@ -1,10 +1,9 @@
-#include "list.h"
-
 /**
  * Implementation of an increasing-order linked list for holding path names. 
  *   The increasing-order property is ensured by creating nodes through 
  *   list_create_node and adding them with list_insert_ordered.
  */
+#include "list.h"
 
 /**
  * Creates a node with the given data. path is copied into two strings, one

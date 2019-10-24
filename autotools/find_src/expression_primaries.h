@@ -42,21 +42,27 @@ union primary_arg {
     struct stat *stat_arg;
 };
 
-// args available to all primaries
+// Args available to all primaries
 struct primary_args_g {
     time_t time_day;
     time_t time_min;
 };
 
-// Parsing functions
+// Parses arg_s and stores its equivalent primary_t in primary.
 int primary_parse(primary_t *primary, char *arg_s);
+
+// Parses arg_s as the type of argument primary accepts, and stores it
+//   in arg.
 int primary_arg_parse(primary_t primary, primary_arg *arg, char *arg_s);
+
+// Helper function for primary_arg_parse.
 struct stat* get_stat(char *path);
 
-// Gets state arguments usable by all primaries
+// Gets arguments usable by all primaries from the program/system state
+//   and stores them in global_args.
 int get_primary_globals(primary_args_g *global_args);
 
-// Evaluate a primary against f_stat
+// Evaluates a primary against f_stat.
 bool primary_evaluate(primary_t primary, primary_arg *arg,\
     primary_args_g *globals, struct stat *f_stat);
 
@@ -67,6 +73,8 @@ bool eval_ctime(struct stat *f_stat, long n, primary_args_g *global_args);
 bool eval_mmin(struct stat *f_stat, long n, primary_args_g *global_args);
 bool eval_mtime(struct stat *f_stat, long n, primary_args_g *global_args);
 bool eval_type(struct stat *f_stat, char t);
+
+// Helpers for primary evaluation functions
 char get_type_char(mode_t mode);
 
 #endif /* __EXPRESSION_PRIMARIES */
