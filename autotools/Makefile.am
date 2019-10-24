@@ -1,12 +1,15 @@
-bin_PROGRAMS=ls #find
+bin_PROGRAMS=ls find
 ls_SOURCES=ls_src/ls.c ls_src/ls.h ls_src/list.c ls_src/list.h
-#find_SOURCES=find/find.c find/find.h find/expr.c find/expr.h find/list.c \
-#             find/list.h
+find_SOURCES=find_src/find.c find_src/find.h find_src/expression.c \
+             find_src/expression.h find_src/expression_primaries.c \
+             find_src/expression_primaries.h find_src/list.c find_src/list.h
 
-test_scripts=tests/ls_order  \
+test_scripts=tests/find_cnewer \
+             tests/find_exists \
+             tests/find_type \
              tests/ls_exists \
-             tests/ls_multi_path \
              tests/ls_option_all \
+             tests/ls_order \
              tests/ls_order_case
 
 EXTRA_DIST=${test_scripts}

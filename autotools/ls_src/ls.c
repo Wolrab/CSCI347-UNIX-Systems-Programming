@@ -52,10 +52,10 @@ ls_err ls(char *path) {
     }
 
     if (option_l) {
-        ret = output_ent_stats(&dir_entries);
+        ret = output_entries_long(&dir_entries);
     }
     else {
-        output_ent_names(&dir_entries);
+        output_entries(&dir_entries);
     }
     
     list_delete(&dir_entries);
@@ -178,7 +178,7 @@ ls_err get_full_path(char *path_buf, int path_buf_len, const char *f_name, \
 /**
  * Outputs the filenames stored in dir_entries to stdout
  */
-void output_ent_names(list *dir_entries) {
+void output_entries(list *dir_entries) {
     node *curr;
 
     curr = *dir_entries;
@@ -194,7 +194,7 @@ void output_ent_names(list *dir_entries) {
  * Returns: LS_ERR_NONE on success, and any string-conversion related error if
  *   any conversion failed.
  */
-ls_err output_ent_stats(list *dir_entries) {
+ls_err output_entries_long(list *dir_entries) {
     struct stat_out_s stat_out;
     node *curr;
     ls_err ret = LS_ERR_NONE;
@@ -406,12 +406,12 @@ int get_options(const int argc, char **argv) {
  */
 void ls_perror(ls_err err, char *pname) {
     char str_buf[4096];
-    int err = errno;
+    int temp = errno;
     memcpy(str_buf, pname, strlen(pname) + 1);
     memcpy(str_buf + strlen(pname), ls_err_msg[err], \
         strlen(ls_err_msg[err]) + 1);
     if (err) {
-        errno = err;
+        errno = temp;
         perror(str_buf);
     }
     else {
