@@ -7,52 +7,31 @@
  * Returns: 0 on success, 1 on error.
  */
 int main(int argc, char **argv) {
-    char **expr_args;
-    int expr_args_size;
+    char **expr_argv;
+    int expr_argc;
     expression_t expression;
-    list path_list;
+    expr_err e_err = EXPR_ERR_NONE;
+    find_err f_err = FIND_ERR_NONE;
 
-    expr_err err = EXPR_ERR_NONE;
-    int ret = 0;
-
-    if (argc == 1) {
-        printf("%s: invalid arguments\n", argv[0]);
-        printf("Usage: %s file [expression]\n", argv[0]);
+    if (check_args(argc, argv) < 0) {
         return 1;
     }
 
-    if (access(argv[1], F_OK) < 0) {
-        printf("%s: file '%s' not found\n", argv[0], argv[1]);
+    expr_argv = &(argv[2]);
+    expr_argc = argc-2;
+
+    e_err = expression_create(&expression, expr_argc, expr_argv);
+    if (e_err != EXPR_ERR_NONE) {
+        expression_perror(e_err, argv[0]);
         return 1;
     }
 
-    expr_args = &(argv[2]);
-    expr_args_size = argc-2;
-
-    err = expression_create(&expression, expr_args, expr_args_size);
-    if (err != EXPR_ERR_NONE) {
-        expression_perror(err, argv, expr_args);
-        return 1;
+    f_err = find(&(argv[1]), &expression);
+    if (f_err) {
+        find_perror(f_err, argv[0]);
+        
     }
-
-    ret = init_global_expression_states();
-    if (ret) {
-        perror(argv[0]);
-        return 1;
-    }
-
-    errno = 0;
-    if (list_init(&path_list) == NULL) {
-        perror(argv[0]);
-        return 1;
-    }
-
-    ret = find(&(argv[1]), &expression, &path_list);
-    if (ret) {
-        perror(argv[0]);
-        return 1;
-    }
-    output_path_list(&path_list);
+    expression_delete(&expression);
 
     return ret;
 }
@@ -63,35 +42,54 @@ int main(int argc, char **argv) {
  *   true.
  * Returns: 0 on success, 1 on error with an associated errno value
  */
-int find(char **file, expression_t *expression, list *path_list) {
+find_err find(char **file, expression_t *expression) {
     FTS *file_tree;
-    FTSENT *entry;
-    list_err err = LIST_ERR_NONE;
+    list path_list = NULL;
+    find_err ret = FIND_ERR_NONE;
 
     errno = 0;
     file_tree = fts_open(file, FTS_PHYSICAL, NULL);
     if (file_tree == NULL) {
-        return 1;
+        return FIND_ERR_FTREE;
     }
-
-    entry = fts_read(file_tree);
-    while (entry != NULL) {
-        if (entry->fts_info != FTS_DP) {
-            if (expression_evaluate(expression, entry->fts_statp)) {
-                err = list_add_ordered(path_list, entry->fts_path);
-                if (err == LIST_ERR_MALLOC) {
-                    return 1;
-                }
-            }
-        }
-        entry = fts_read(file_tree);
+    ret = descend_tree(file_tree, expression, &path_list);
+    if (ret == FIND_ERR_MALLOC) {
+        goto exit;
     }
+    output_path_list(&path_list);
+    
+    exit:
     fts_close(file_tree);
-    return 0;
+    list_delete(&path_list);
+    return ret;
 }
 
 /**
- * Simple output of path_list to stdout
+ * 
+ */
+find_err descend_tree(FTS *file_tree, expression_t *expression, list *path_list) {
+    FTSENT *entry;
+    node *n;
+    find_err ret = FIND_ERR_NONE;
+
+    entry = fts_read(file_tree);
+    while (entry != NULL) {
+        if (entry->fts_info != FTS_DP && \
+        expression_evaluate(expression, entry->fts_statp)) {
+            n = list_create_node(entry->fts_path);
+            if (n == NULL) {
+                return FIND_ERR_MALLOC;
+            }
+            list_insert_ordered(path_list, n);
+        }
+
+        entry = fts_read(file_tree);
+    }
+    return ret;
+}
+
+/**
+ * Simple output of path_list to stdout.
  */
 void output_path_list(list *path_list) {
     node *curr = *path_list;
@@ -102,25 +100,48 @@ void output_path_list(list *path_list) {
 }
 
 /**
- * perror function specifically for managing errors from expression function.
- *   This allows for verbose errors relating to malformed expressions.
+ * Does basic argument validity checking and prints any errors.
+ * Returns: 0 on success, -1 if arguments are invalid.
  */
-void expression_perror(expr_err err, char **argv, char **expr_args) {
+int check_args(int argc, char **argv) {
+    if (argc == 1) {
+        printf("%s: invalid arguments\n", argv[0]);
+        printf("Usage: %s file [expression]\n", argv[0]);
+        return -1;
+    }
+
+    errno = 0;
+    if (access(argv[1], F_OK) < 0) {
+        perror(argv[0]);
+        return -1;
+    }
+    return 0;
+}
+
+/**
+ * Basic error output for expression creation.
+ */
+void expression_perror(expr_err err, char *pname) {
     switch(err) {
     case EXPR_ERR_MALLOC:
-        perror(argv[0]);
+        perror(pname);
         break;
-    case EXPR_ERR_INVALID_PRIMARY:
-        fprintf(stderr, "%s: invalid primary '%s' in expression\n", \
-            argv[0], expr_args[0]);
+    case EXPR_ERR_PRIMARY:
+        fprintf(stderr, "%s: invalid primary\n", \
+            pname);
         break;
-    case EXPR_ERR_INVALID_ARG:
-        fprintf(stderr, "%s: invalid argument '%s' for primary '%s' in "
-            "expression\n", argv[0], expr_args[1], expr_args[0]);
+    case EXPR_ERR_ARG:
+        fprintf(stderr, "%s: invalid argument\n", pname);
         break;
     case EXPR_ERR_NO_ARG:
-        fprintf(stderr, "%s: no argument found for primary '%s'", \
-            argv[0], expr_args[0]);
+        fprintf(stderr, "%s: primary missing an argument\n", pname);
         break;
     }
+}
+
+/**
+ * Basic error output for find
+ */
+void find_perror(find_err err, char *pname) {
+
 }

@@ -7,26 +7,6 @@
  */
 
 /**
- * Initializes a linked list. If l is null, a new list is created.
- * Returns: The initialized list on success, NULL if malloc fails.
- */
-list* list_init(list *l) {
-    list *l_init;
-
-    l_init = l;
-    if (l_init == NULL) {
-        errno = 0;
-        l_init = malloc(sizeof(list));
-        if (l_init == NULL) {
-            return NULL;
-        }
-    }
-
-    *l_init = NULL;
-    return l_init;
-}
-
-/**
  * Creates a node with the given data. f_name is copied into two strings, one
  *   being an all-lowercase variant for sorting. The user is expected to ensure
  *   the reference to f_stat is valid for the entire lifetime of the list.
@@ -55,7 +35,32 @@ node* list_create_node(char *f_name, struct stat *f_stat) {
 }
 
 /**
+ * Fills n's data field, handling allocation and copying of f_name into
+ *   data.f_name and data.f_name_lower. f_stat is directly stored.
+ * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails.
+ */
+list_err node_set_data(node *n, char *f_name, struct stat *f_stat) {
+    errno = 0;
+    n->data.f_name = malloc(strlen(f_name) + 1);
+    if (n->data.f_name == NULL && errno) {
+        return LIST_ERR_MALLOC;
+    }
+    memcpy(n->data.f_name, f_name, strlen(f_name) + 1);
+
+    n->data.f_name_lower = lower_string_cpy(f_name);
+    if (n->data.f_name_lower && errno) {
+        free(n->data.f_name);
+        return LIST_ERR_MALLOC;
+    }
+
+    n->data.f_stat = f_stat;
+    n->next = NULL;
+    return LIST_ERR_NONE;
+}
+
+/**
  * Adds n to the list that maintains the increasing order invariant of the list.
+ * If l is an empty list, it must be initialized and point to NULL.
  * Returns: LIST_ERR_NONE on success and LIST_ERR_DUP_ENTRY if n already 
  *   exists in the list, though in that case the duplicate entry still will be
  *   stored.
@@ -89,30 +94,6 @@ list_err list_insert_ordered(list *l, node *n) {
     n->next = curr->next;
     curr->next = n;
     return ret;
-}
-
-/**
- * Fills n's data field, handling allocation and copying of f_name into
- *   data.f_name and data.f_name_lower. f_stat is directly stored.
- * Returns: LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails.
- */
-list_err node_set_data(node *n, char *f_name, struct stat *f_stat) {
-    errno = 0;
-    n->data.f_name = malloc(strlen(f_name) + 1);
-    if (n->data.f_name == NULL && errno) {
-        return LIST_ERR_MALLOC;
-    }
-    memcpy(n->data.f_name, f_name, strlen(f_name) + 1);
-
-    n->data.f_name_lower = lower_string_cpy(f_name);
-    if (n->data.f_name_lower && errno) {
-        free(n->data.f_name);
-        return LIST_ERR_MALLOC;
-    }
-
-    n->data.f_stat = f_stat;
-    n->next = NULL;
-    return LIST_ERR_NONE;
 }
 
 /**

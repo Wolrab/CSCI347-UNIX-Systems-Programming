@@ -42,12 +42,8 @@ int main(int argc, char **argv) {
  *   to the type of error.
  */
 ls_err ls(char *path) {
-    list dir_entries;
+    list dir_entries = NULL;
     ls_err ret = LS_ERR_NONE;
-
-    if (list_init(&dir_entries) == NULL) {
-        return LS_ERR_MALLOC;
-    }
 
     ret = get_entries(path, &dir_entries);
     if (ret != LS_ERR_NONE) {

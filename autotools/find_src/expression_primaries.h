@@ -6,11 +6,12 @@
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
+#include <stdlib.h>
 
 typedef enum primary primary_t;
 typedef enum arg_type arg_type;
 typedef union primary_arg primary_arg;
-typedef struct primary_args_g_s primary_args_g;
+typedef struct primary_args_g primary_args_g;
 
 #define SEC_PER_DAY 86400
 #define SEC_PER_MIN 60
@@ -35,15 +36,14 @@ enum arg_type {
 };
 extern const arg_type primary_arg_type[];
 
-// Holds the values of arguments to primaries
 union primary_arg {
     long long_arg;
     char char_arg;
     struct stat *stat_arg;
 };
 
-// args for all primaries
-struct primary_args_g_s {
+// args available to all primaries
+struct primary_args_g {
     time_t time_day;
     time_t time_min;
 };

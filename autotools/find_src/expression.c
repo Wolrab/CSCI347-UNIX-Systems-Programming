@@ -19,10 +19,12 @@
 /**
  * Creates an expression from a list of string arguments. Because each primary
  *   must have both the name of the primary and an argument, it creates
- *   the primary by moving two arguments at a time, parsing them and adding
+ *   each primary by moving two arguments at a time, parsing them and adding
  *   them to the expression list.
  * The user is expected to have initialized and expression_t object that
  *   expression points to.
+ * Returns: EXPR_ERR_NONE on success, and any other expr_err value if some
+ *   part of the parsing fails and deletes any allocated part of the expression.
  */
 expr_err expression_create(expression_t *expression, int expr_argc, \
         char **expr_argv) {
@@ -57,7 +59,10 @@ expr_err expression_create(expression_t *expression, int expr_argc, \
 }
 
 /**
- * TODO: Comment
+ * Parses primary_s and primary_arg_s and puts the appropriate values in the
+ *   primary_node referenced by node.
+ * Returns: EXPR_ERR_NONE on success, and otherwise returns an expr_err
+ *   indicating what part of the parsing/allocating process the function failed.
  */
 expr_err expression_create_primary(primary_node **node, char *primary_s, \
         char *primary_arg_s) {
@@ -92,7 +97,8 @@ expr_err expression_create_primary(primary_node **node, char *primary_s, \
 }
 
 /**
- * TODO: Comment
+ * Adds the given primary node to expression. Appends it to the end of the
+ *   linked list.
  */
 void expression_add_primary(expression_t *expression, primary_node *node) {
     primary_node *curr = expression->head;
@@ -108,7 +114,9 @@ void expression_add_primary(expression_t *expression, primary_node *node) {
 }
 
 /**
- * TODO: Comment
+ * Evaluates the expression against f_stat.
+ * Returns: true if expression evaluates to true for all primaries, false
+ *   otherwise
  */
 bool expression_evaluate(expression_t *expression, struct stat *f_stat) {
     primary_node *curr = expression->head;
@@ -125,10 +133,10 @@ bool expression_evaluate(expression_t *expression, struct stat *f_stat) {
 }
 
 /**
- * TODO: Comment
+ * Deletes the entire expression.
  */
 void expression_delete(expression_t *expression) {
-    primary_node *curr, *next = expression->head;
+    primary_node *next, *curr = expression->head;
     while (curr != NULL) {
         next = curr->next;
         free(curr);

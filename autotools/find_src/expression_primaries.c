@@ -33,7 +33,7 @@ int primary_parse(primary_t *primary, char *arg_s) {
 /**
  * Parses arg_s for its value as an arg for the given primary, putting its
  *   value in arg.
- * Returns: 0 on success, -1 if the arg is malformed in some way.
+ * Returns: 0 on success, -1 if the arg could not be parsed.
  */
 int primary_arg_parse(primary_t primary, primary_arg *arg, char *arg_s) {
     int ret = 0;
@@ -48,7 +48,7 @@ int primary_arg_parse(primary_t primary, primary_arg *arg, char *arg_s) {
         }
         break;
     case ARG_STAT:
-        arg->stat_arg = get_stat_arg(arg_s);
+        arg->stat_arg = get_stat(arg_s);
         if (arg->stat_arg == NULL) {
             ret = -1;
         }
@@ -80,6 +80,9 @@ struct stat* get_stat(char *path) {
 
 /**
  * Fills out global_args with necessary program and state information.
+ * The name is misleading, the args are global in the sense that they do not
+ *   have different values between different primaries, and all primaries have
+ *   access to them if they need it.
  * Returns: 0 on success, and -1 on error.
  */
 int get_primary_globals(primary_args_g *global_args) {
@@ -136,8 +139,10 @@ bool primary_evaluate(primary_t primary, primary_arg *arg,\
     return ret;
 }
 
+// After this point are all the primary evaluation functions and their helpers.
+
 /**
- * TODO: Comment
+ * Returns: true if f_stat is newer than o_stat, false otherwise.
  */
 bool eval_cnewer(struct stat *f_stat, struct stat *o_stat) {
     return f_stat->st_ctim.tv_sec > o_stat->st_ctim.tv_sec || \
@@ -146,7 +151,8 @@ bool eval_cnewer(struct stat *f_stat, struct stat *o_stat) {
 }
 
 /**
- * TODO: Comment
+ * Returns: true if the last change of file status information was n minutes
+ *   ago (rounded up), false otherwise.
  */
 bool eval_cmin(struct stat *f_stat, long n, primary_args_g *global_args) {
     time_t min = f_stat->st_ctim.tv_sec / SEC_PER_MIN;
@@ -154,7 +160,8 @@ bool eval_cmin(struct stat *f_stat, long n, primary_args_g *global_args) {
 }
 
 /**
- * TODO: Comment
+ * Returns: true if the last change of file status information was n days
+ *   ago (rounded up), false otherwise.
  */
 bool eval_ctime(struct stat *f_stat, long n, primary_args_g *global_args) {
     time_t day = f_stat->st_ctim.tv_sec / SEC_PER_DAY;
@@ -162,7 +169,8 @@ bool eval_ctime(struct stat *f_stat, long n, primary_args_g *global_args) {
 }
 
 /**
- * TODO: Comment
+ * Returns: true if the last file modification was n minutes ago (rounded up),
+ *   false otherwise.
  */
 bool eval_mmin(struct stat *f_stat, long n, primary_args_g *global_args) {
     time_t min = f_stat->st_mtim.tv_sec / SEC_PER_MIN;
@@ -170,7 +178,8 @@ bool eval_mmin(struct stat *f_stat, long n, primary_args_g *global_args) {
 }
 
 /**
- * TODO: Comment
+ * Returns: true if the last file modification was n days ago (rounded up),
+ *   false otherwise.
  */
 bool eval_mtime(struct stat *f_stat, long n, primary_args_g *global_args) {
     time_t day = f_stat->st_mtim.tv_sec / SEC_PER_DAY;
@@ -178,7 +187,8 @@ bool eval_mtime(struct stat *f_stat, long n, primary_args_g *global_args) {
 }
 
 /**
- * TODO: Comment
+ * Returns: true if the character representation of f_stat->st_mode is
+ *   equivalent to t, false otherwise.
  */
 bool eval_type(struct stat *f_stat, char t) {
     return get_type_char(f_stat->st_mode) == t;
@@ -195,7 +205,7 @@ char get_type_char(mode_t mode) {
     
     mode &= S_IFMT;
     int i = 0;
-    while (i < 7 && type_char[i] != mode) {
+    while (i < 7 && type[i] != mode) {
         i++;
     }
 

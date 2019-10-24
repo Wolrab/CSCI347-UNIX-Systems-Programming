@@ -28,24 +28,22 @@ enum list_err {
     LIST_ERR_DUP_ENTRY = 2
 };
 
-
-// Initializes a list. If l is NULL, mallocs a new list. Otherwise 
-//   appropriately initializes l.
-list* list_init(list *l);
-
 // Creates a new node with data specified by f_name and f_stat. The user must
 //   ensure f_stat is a valid reference for the entire life of the list.
 node* list_create_node(char *f_name, struct stat *f_stat);
 
+// Sets the given data in n.
+list_err node_set_data(node *n, char *f_name, struct stat *f_stat);
+
 // Inserts n into l while preserving increasing order of l. Duplicate nodes
 //   will be added, but this the caller will be informed of such by 
 //   LIST_ERR_DUP_ENTRY being returned.
+// If adding the first element of an empty list, that list must be initialized
+//   and point at NULL.
 // If nodes are added to l by any other means than this function, then 
 //   list_insert_ordered has undefined behavior.
 list_err list_insert_ordered(list *l, node *n);
 
-// Sets the given data in n.
-list_err node_set_data(node *n, char *f_name, struct stat *f_stat);
 
 // Deletes l and points it to NULL.
 // All members of l, whether they were copied by l or their reference was
