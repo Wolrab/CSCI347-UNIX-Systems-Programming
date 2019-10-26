@@ -31,8 +31,12 @@ int primary_parse(primary_t *primary, char *arg_s) {
 }
 
 /**
- * Parses arg_s for its value as an arg for the given primary, putting its
- *   value in arg.
+ * Parses arg_s as the type of argument primary accepts, and stores it
+ *   in arg. This function uses the mapping from primary_t to arg_type via 
+ *   the primary_arg_type array.
+ * Also, I had included more robust error checking before, but it cluttered
+ *   everything up and also, "who cares?" If you put something that's not a
+ *   number as an arg to a primary that takes a number, then it'll just be 0.
  * Returns: 0 on success, -1 if the arg could not be parsed.
  */
 int primary_arg_parse(primary_t primary, primary_arg *arg, char *arg_s) {
@@ -80,9 +84,13 @@ struct stat* get_stat(char *path) {
 
 /**
  * Fills out global_args with necessary program and state information.
- * The name is misleading, the args are global in the sense that they do not
- *   have different values between different primaries, and all primaries have
- *   access to them if they need it.
+ * Currently the only values in use are the number of minutes since the epoch
+ *   and the number of days since the epoch, rounded up. The resolution of this
+ *   calculation is only in seconds, there is no need to go into the
+ *   nanoseconds.
+ * Also, the name is misleading. The args are global in the sense that their
+ *   values are the same between different primaries, and all primaries have
+ *   access to them if needed.
  * Returns: 0 on success, and -1 on error.
  */
 int get_primary_globals(primary_args_g *global_args) {
@@ -107,9 +115,6 @@ int get_primary_globals(primary_args_g *global_args) {
 /**
  * Takes a primary, its arg value, and globals, and returns its truth value
  *   for the given f_stat.
- * Note: The mapping from primary_t to arg_type is not done here. Since the
- *   function calls are manually broken up via a switch statement anyways, it
- *   would have just added extra complexity to break it up even further.
  * Returns: true if primary evaluates to true, false if it doesn't or if the
  *   primary does not exist.
  */
@@ -135,14 +140,15 @@ bool primary_evaluate(primary_t primary, primary_arg *arg,\
     case TYPE:
         ret = eval_type(f_stat, arg->char_arg);
         break;
+    case PRIMARY_NUM:
+        break;
     }
     return ret;
 }
 
-// After this point are all the primary evaluation functions and their helpers.
-
+// Primary evaluation functions
 /**
- * Returns: true if f_stat is newer than o_stat, false otherwise.
+ * Returns true if f_stat is newer than o_stat, false otherwise.
  */
 bool eval_cnewer(struct stat *f_stat, struct stat *o_stat) {
     return f_stat->st_ctim.tv_sec > o_stat->st_ctim.tv_sec || \
@@ -151,7 +157,7 @@ bool eval_cnewer(struct stat *f_stat, struct stat *o_stat) {
 }
 
 /**
- * Returns: true if the last change of file status information was n minutes
+ * Returns true if the last change of file status information was n minutes
  *   ago (rounded up), false otherwise.
  */
 bool eval_cmin(struct stat *f_stat, long n, primary_args_g *global_args) {
@@ -160,7 +166,7 @@ bool eval_cmin(struct stat *f_stat, long n, primary_args_g *global_args) {
 }
 
 /**
- * Returns: true if the last change of file status information was n days
+ * Returns true if the last change of file status information was n days
  *   ago (rounded up), false otherwise.
  */
 bool eval_ctime(struct stat *f_stat, long n, primary_args_g *global_args) {
@@ -169,7 +175,7 @@ bool eval_ctime(struct stat *f_stat, long n, primary_args_g *global_args) {
 }
 
 /**
- * Returns: true if the last file modification was n minutes ago (rounded up),
+ * Returns true if the last file modification was n minutes ago (rounded up),
  *   false otherwise.
  */
 bool eval_mmin(struct stat *f_stat, long n, primary_args_g *global_args) {
@@ -178,7 +184,7 @@ bool eval_mmin(struct stat *f_stat, long n, primary_args_g *global_args) {
 }
 
 /**
- * Returns: true if the last file modification was n days ago (rounded up),
+ * Returns true if the last file modification was n days ago (rounded up),
  *   false otherwise.
  */
 bool eval_mtime(struct stat *f_stat, long n, primary_args_g *global_args) {
@@ -187,13 +193,14 @@ bool eval_mtime(struct stat *f_stat, long n, primary_args_g *global_args) {
 }
 
 /**
- * Returns: true if the character representation of f_stat->st_mode is
+ * Returns true if the character representation of f_stat->st_mode is
  *   equivalent to t, false otherwise.
  */
 bool eval_type(struct stat *f_stat, char t) {
     return get_type_char(f_stat->st_mode) == t;
 }
 
+// Helpers for primary evaluation functions
 /**
  * Returns the character representation of the filetype of mode, and a '?'
  *   if the filetype is invalid.

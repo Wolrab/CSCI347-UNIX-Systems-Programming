@@ -39,8 +39,8 @@ enum expr_err {
 expr_err expression_create(expression_t *expression, int expr_argc, \
     char **expr_argv);
 
-// Creates a primary node. node is expected to be pointing to an already
-//   allocated node.
+// Creates a primary node. Allocation of primary_node is done here, the
+//   primary_node pointer that node points too must exist though.
 expr_err expression_create_primary(primary_node **node, char *primary_s, \
     char *primary_arg_s);
 

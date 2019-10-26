@@ -1,9 +1,13 @@
+/**
+ * find program. Recursively searches a given file tree, and given an expression
+ *   prints all files that make the expression return true.
+ */
 #include "find.h"
 
 /**
- * This main does mostly error checking. Creates the expression, sets the
- *   necessary globals and then calls find to start itterating through the 
- *   file tree.
+ * Does basic error checking, creates an expression from the available args,
+ *   and then calls find to do the rest. Calls the appropriate *_perror
+ *   function if necessary.
  * Returns: 0 on success, 1 on error.
  */
 int main(int argc, char **argv) {
@@ -55,12 +59,10 @@ find_err find(char **file, expression_t *expression) {
         return FIND_ERR_FTREE;
     }
     ret = descend_tree(file_tree, expression, &path_list);
-    if (ret == FIND_ERR_MALLOC) {
-        goto exit;
+    if (ret == FIND_ERR_NONE) {
+        output_path_list(&path_list);
     }
-    output_path_list(&path_list);
     
-    exit:
     fts_close(file_tree);
     list_delete(&path_list);
     return ret;
@@ -69,10 +71,10 @@ find_err find(char **file, expression_t *expression) {
 /**
  * Descends the file tree, evaluating each file with expression and adding
  *   every file that evaluates to true to path_list. Every call to fts_read
- *   returns a struct with the files stat's included, with the current
- *   small selection of primaries passing this file stat is good enough.
+ *   gives the struct of the file back which then becomes the input into
+ *   expression_evaluate.
  * Returns: FIND_ERR_NONE on success, and FIND_ERR_MALLOC if a node fails to
- *   be allocated
+ *   be allocated.
  */
 find_err descend_tree(FTS *file_tree, expression_t *expression, list *path_list) {
     FTSENT *entry;
@@ -130,9 +132,14 @@ int check_args(int argc, char **argv) {
  */
 void expression_perror(expr_err err, char *pname) {
     switch(err) {
+    case EXPR_ERR_NONE:
+        break;
     case EXPR_ERR_MALLOC:
         perror(pname);
         break;
+    case EXPR_ERR_GLOBALS:
+        fprintf(stderr, "%s: could not get required program state info\n", \
+            pname);
     case EXPR_ERR_PRIMARY:
         fprintf(stderr, "%s: invalid primary\n", \
             pname);
@@ -147,7 +154,7 @@ void expression_perror(expr_err err, char *pname) {
 }
 
 /**
- * Basic error output for find
+ * Basic error output for find.
  */
 void find_perror(find_err err, char *pname) {
     switch (err) {

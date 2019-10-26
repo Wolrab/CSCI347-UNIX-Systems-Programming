@@ -1,3 +1,8 @@
+/**
+ * The ls program. Lists files in the current working directory. Options modify
+ *   the output.
+ */
+
 #include "ls.h"
 
 // Basic error message defines to make ls_perror easier on the eyes
@@ -8,10 +13,8 @@ const char *const ls_err_msg[] = {
     "error reading a directory stream",
     "error getting file statistics",
     "warning: duplicate entry found",
-    "path overflows maximum path length",
-    "date overflows expected length",
-    "user name not found",
-    "group name not found"
+    "error converting path: overflow detected",
+    "error parsing long-format output"
 };
 
 /** 
@@ -20,7 +23,8 @@ const char *const ls_err_msg[] = {
  * Returns: 0 on success, >0 on error
  */
 int main(int argc, char **argv) {
-    ls_err ret = LS_ERR_NONE;
+    ls_err err = LS_ERR_NONE;
+    int ret = 0;
 
     ret = get_options(argc, argv);
     if (ret < 0) {
@@ -28,9 +32,10 @@ int main(int argc, char **argv) {
         return ret;
     }
 
-    ret = ls(".");
-    if (ret != LS_ERR_NONE) {
-        ls_perror(ret, argv[0]);
+    err = ls(".");
+    if (err != LS_ERR_NONE) {
+        ls_perror(err, argv[0]);
+        ret = err;
     }
 
     return ret;
@@ -52,10 +57,10 @@ ls_err ls(char *path) {
     }
 
     if (option_l) {
-        ret = output_ent_stats(&dir_entries);
+        ret = output_entries_long(&dir_entries);
     }
     else {
-        output_ent_names(&dir_entries);
+        output_entries(&dir_entries);
     }
     
     list_delete(&dir_entries);
@@ -63,10 +68,12 @@ ls_err ls(char *path) {
 }
 
 /**
- * Open and iterates through a directory stream at path, filling dir_entries 
- *   with each entry.
- * Returns: LS_ERR_NONE on success, and on error an ls_err value corresponding
- *   to the type of error.
+ * Opens and iterates through a directory stream at path, and for each entry
+ *   entering it into dir_entries with a call to parse_entry.
+ * Returns: LS_ERR_NONE on success, and any other ls_err otherwise depending
+ *   on the type of failure. It should be noted that LS_ERR_DUP_ENTRY is not
+ *   fatal, but the value will be passed back as long as a fatal error doesn't
+ *   occur before the function finishes.
  */
 ls_err get_entries(const char *path, list *dir_entries) {
     DIR *d = NULL;
@@ -106,9 +113,10 @@ ls_err get_entries(const char *path, list *dir_entries) {
 
 /** 
  * Parses the data in ent and adds a new node with the parsed data into 
- *   dir_entries.
- * Returns: LS_ERR_NONE on success, and on error an ls_err value corresponding
- *   to the type of error.
+ *   dir_entries. If long-format output is on, it will also store the extra
+ *   stat information in dir_entries as well.
+ * Returns: LS_ERR_NONE on success, and any other ls_err otherwise depending
+ *   on the type of error.
  */
 ls_err parse_entry(struct dirent *ent, const char *path, \
         list *dir_entries) {
@@ -178,9 +186,8 @@ ls_err get_full_path(char *path_buf, int path_buf_len, const char *f_name, \
 /**
  * Outputs the filenames stored in dir_entries to stdout
  */
-void output_ent_names(list *dir_entries) {
+void output_entries(list *dir_entries) {
     node *curr;
-
     curr = *dir_entries;
     while (curr != NULL) {
         printf("%s\n", curr->data.f_name);
@@ -191,182 +198,29 @@ void output_ent_names(list *dir_entries) {
 /**
  * Outputs the filenames and stat information in dir_entries to stdout. asserts
  *   that each entry has a non-null f_stat field.
- * Returns: LS_ERR_NONE on success, and any string-conversion related error if
- *   any conversion failed.
+ * Returns: LS_ERR_NONE on success, and LS_ERR_LONG_PARSE if the long-format
+ *   output could not be parsed.
  */
-ls_err output_ent_stats(list *dir_entries) {
-    struct stat_out_s stat_out;
+ls_err output_entries_long(list *dir_entries) {
+    struct long_out_s long_out;
     node *curr;
+    int err = 0;
     ls_err ret = LS_ERR_NONE;
-
-    unsigned long nlink_cast;
-    long size_cast;
     
     curr = *dir_entries;
     while (curr != NULL) {
         assert(curr->data.f_stat != NULL);
 
-        ret = fill_stat_out(&stat_out, &(curr->data));
-        if (ret != LS_ERR_NONE) {
-            return ret;
+        err = long_out_parse(&long_out, curr->data.f_stat, curr->data.f_name);
+        if (err < 0) {
+            return LS_ERR_LONG_PARSE;
         }
 
-        nlink_cast = (unsigned long)curr->data.f_stat->st_nlink;
-        size_cast = (long)curr->data.f_stat->st_size;
-
-        printf("%s %lu %s %s %ld %s %s\n", stat_out.mode_str, 
-            nlink_cast, stat_out.usr_str, stat_out.grp_str, 
-            size_cast, stat_out.mtim_str, stat_out.f_name);
-
-        free_stat_out(&stat_out);
+        long_out_print(&long_out);
+        long_out_delete(&long_out);
         curr = curr->next;
     }
     return ret;
-}
-
-/**
- * Fills stat_out using the fields given in data.
- * Returns: LS_ERR_NONE on success, otherwise any of the errors from the 
- *   get_*_str functions and all data is freed.
- */
-ls_err fill_stat_out(struct stat_out_s *stat_out, struct data_s *data) {
-    ls_err ret = LS_ERR_NONE;
-
-    get_mode_str(stat_out->mode_str, data->f_stat->st_mode);
-
-    ret = get_usr_str(&(stat_out->usr_str), data->f_stat->st_uid);
-    if (ret != LS_ERR_NONE) {
-        goto exit;
-    }
-
-    ret = get_grp_str(&(stat_out->grp_str), data->f_stat->st_gid);
-    if (ret != LS_ERR_NONE) {
-        goto cleanup_usr;
-    }
-    
-    ret = get_mtim_str(stat_out->mtim_str, data->f_stat->st_mtime);
-    if (ret != LS_ERR_NONE) {
-        goto cleanup_group_usr;
-    }
-
-    stat_out->f_name = data->f_name;
-    return ret;
-
-    cleanup_group_usr:
-    free(stat_out->grp_str);
-    cleanup_usr:
-    free(stat_out->usr_str);
-    exit:
-    return ret;
-}
-
-/**
- * Fills a fixed sized character sequence representing important data from mode.
- */
-void get_mode_str(char *mode_s, mode_t mode) {
-    if (S_ISREG(mode))
-        mode_s[0] = '-';
-    else if (S_ISDIR(mode))
-        mode_s[0] = 'd';
-    else if (S_ISLNK(mode))
-        mode_s[0] = 'l';
-    else if (S_ISFIFO(mode))
-        mode_s[0] = 'p';
-    else if (S_ISSOCK(mode))
-        mode_s[0] = 's';
-    else if (S_ISCHR(mode))
-        mode_s[0] = 'c';
-    else if (S_ISBLK(mode))
-        mode_s[0] = 'b';
-
-    mode_s[1] = S_IRUSR & mode ? 'r' : '-';
-    mode_s[2] = S_IWUSR & mode ? 'w' : '-';
-    mode_s[3] = S_IXUSR & mode ? 'x' : '-';
-    mode_s[4] = S_IRGRP & mode ? 'r' : '-';
-    mode_s[5] = S_IWGRP & mode ? 'w' : '-';
-    mode_s[6] = S_IXGRP & mode ? 'x' : '-';
-    mode_s[7] = S_IROTH & mode ? 'r' : '-';
-    mode_s[8] = S_IWOTH & mode ? 'w' : '-';
-    mode_s[9] = S_IXOTH & mode ? 'x' : '-';
-    mode_s[10] = '\0';
-}
-
-/**
- * Allocates and sets the value pointed at by usr_str to be the user name 
- *   of uid.
- * Returns: LS_ERR_NONE on success, LS_ERR_USR_NOT_FOUND if the user name 
- *   wasn't found and LS_ERR_MALLOC if malloc fails.
- */
-ls_err get_usr_str(char **usr_str, uid_t uid) {
-    struct passwd *passwd_ent;
-    ls_err ret = LS_ERR_NONE;
-
-    passwd_ent = getpwuid(uid);
-    if (passwd_ent == NULL) {
-        return LS_ERR_USR_NOT_FOUND;
-    }
-
-    errno = 0;
-    *usr_str = malloc(strlen(passwd_ent->pw_name) + 1);
-    if (*usr_str == NULL && errno) {
-        return LS_ERR_MALLOC;
-    }
-
-    memcpy(*usr_str, passwd_ent->pw_name, strlen(passwd_ent->pw_name) + 1);
-
-    return ret;
-}
-
-/**
- * Allocates and sets the value pointed at by grp_str to be the group name 
- *   of gid.
- * Returns: LS_ERR_NONE on success, LS_ERR_GRP_NOT_FOUND if the group name 
- *   wasn't found and LS_ERR_MALLOC if malloc fails.
- */
-ls_err get_grp_str(char **grp_str, gid_t gid) {
-    struct group *group_ent;
-    ls_err ret = LS_ERR_NONE;
-
-    group_ent = getgrgid(gid);
-    if (group_ent == NULL) {
-        return LS_ERR_GRP_NOT_FOUND;
-    }
-
-    errno = 0;
-    *grp_str = malloc(strlen(group_ent->gr_name) + 1);
-    if (*grp_str == NULL && errno) {
-        return LS_ERR_MALLOC;
-    }
-
-    memcpy(*grp_str, group_ent->gr_name, strlen(group_ent->gr_name) + 1);
-
-    return ret;
-}
-
-/** 
- * Gets the formatted date from mtim.
- * Returns: LS_ERR_NONE on success, LS_ERR_DATE_OVERFLOW if the date could not
- *   fit inside mtim_str.
- */
-ls_err get_mtim_str(char *mtim_str, time_t mtim) {
-    struct tm *t;
-    ls_err ret = LS_ERR_NONE;
-    
-    t = localtime(&mtim);
-    errno = 0;
-    if (strftime(mtim_str, DATE_STR_LEN, "%b %e %H:%M", t) == 0) {
-        ret = LS_ERR_DATE_OVERFLOW;
-    }
-    
-    return ret;
-}
-
-/**
- * Frees all dynamically allocated fields of stat_out
- */
-void free_stat_out(struct stat_out_s *stat_out) {
-    free(stat_out->usr_str);
-    free(stat_out->grp_str);
 }
 
 /**
@@ -406,12 +260,12 @@ int get_options(const int argc, char **argv) {
  */
 void ls_perror(ls_err err, char *pname) {
     char str_buf[4096];
-    int err = errno;
+    int temp = errno;
     memcpy(str_buf, pname, strlen(pname) + 1);
     memcpy(str_buf + strlen(pname), ls_err_msg[err], \
         strlen(ls_err_msg[err]) + 1);
     if (err) {
-        errno = err;
+        errno = temp;
         perror(str_buf);
     }
     else {

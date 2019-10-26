@@ -44,7 +44,6 @@ list_err node_set_data(node *n, char *f_name, struct stat *f_stat);
 //   list_insert_ordered has undefined behavior.
 list_err list_insert_ordered(list *l, node *n);
 
-
 // Deletes l and points it to NULL.
 // All members of l, whether they were copied by l or their reference was
 //   simply held, will be deleted. The user must not be holding any 

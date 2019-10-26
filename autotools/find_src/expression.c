@@ -9,22 +9,24 @@
  *   or system. This information doesn't change during execution.
  * Operators are just logical connectives between primaries, but for now the
  *   only available operator is an implicit && between all primaries. Because
- *   of this, it is suficient that our expressions be represented as a linked
+ *   of this, it is sufficient that our expressions be represented as a linked
  *   list of primaries. If all are true, the expression is true, and is false
  *   otherwise.
+ *
+ * Note to future self: When expression's functionality is expanded to include
+ *   more operators and parenthesized sub-expressions, I believe that
+ *   expression_t can be changed very easily to represent some kind of binary
+ *   parse-tree with primary_node's as leaves and operators connecting them.
  */
-
 #include "expression.h"
 
 /**
  * Creates an expression from a list of string arguments. Because each primary
  *   must have both the name of the primary and an argument, it creates
- *   each primary by moving two arguments at a time, parsing them and adding
- *   them to the expression list.
- * The user is expected to have initialized and expression_t object that
- *   expression points to.
+ *   each primary by incrementing by two arguments at a time, parsing them and
+ *   adding them to the expression.
  * Returns: EXPR_ERR_NONE on success, and any other expr_err value if some
- *   part of the parsing fails and deletes any allocated part of the expression.
+ *   part of the parsing fails.
  */
 expr_err expression_create(expression_t *expression, int expr_argc, \
         char **expr_argv) {
@@ -59,10 +61,10 @@ expr_err expression_create(expression_t *expression, int expr_argc, \
 }
 
 /**
- * Parses primary_s and primary_arg_s and puts the appropriate values in the
- *   primary_node referenced by node.
+ * Parses primary_s and primary_arg_s and allocates a new primary node to
+ *   hold those values.
  * Returns: EXPR_ERR_NONE on success, and otherwise returns an expr_err
- *   indicating what part of the parsing/allocating process the function failed.
+ *   indicating what part of the parsing/allocating process failed.
  */
 expr_err expression_create_primary(primary_node **node, char *primary_s, \
         char *primary_arg_s) {
@@ -97,8 +99,8 @@ expr_err expression_create_primary(primary_node **node, char *primary_s, \
 }
 
 /**
- * Adds the given primary node to expression. Appends it to the end of the
- *   linked list.
+ * Adds the given primary_node to expression by appending it to the final node
+ *   in expression, preserving the order the expression will be evaluated in.
  */
 void expression_add_primary(expression_t *expression, primary_node *node) {
     primary_node *curr = expression->head;

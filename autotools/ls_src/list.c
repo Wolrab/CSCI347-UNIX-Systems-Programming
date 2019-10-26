@@ -1,10 +1,9 @@
-#include "list.h"
-
 /**
  * Implementation of an increasing-order linked list for holding file names 
  *   and stat information. The increasing-order property is ensured by creating
  *   nodes through list_create_node and adding them with list_insert_ordered.
  */
+#include "list.h"
 
 /**
  * Creates a node with the given data. f_name is copied into two strings, one
@@ -29,6 +28,8 @@ node* list_create_node(char *f_name, struct stat *f_stat) {
     case LIST_ERR_MALLOC:
         free(n);
         n = NULL;
+    case LIST_ERR_DUP_ENTRY:
+        break;
     }
 
     return n;
