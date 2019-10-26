@@ -116,12 +116,6 @@ int check_args(int argc, char **argv) {
         printf("Usage: %s file [expression]\n", argv[0]);
         return -1;
     }
-
-    errno = 0;
-    if (access(argv[1], F_OK) < 0) {
-        perror(argv[0]);
-        return -1;
-    }
     return 0;
 }
 
