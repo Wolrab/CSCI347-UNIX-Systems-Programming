@@ -53,4 +53,7 @@ void long_out_print(struct long_out_s *long_out);
 // Appropriately frees long_out's elements, leaving the struct itself.
 void long_out_delete(struct long_out_s *long_out);
 
+// Gets the char representation of the filetype specified by mode.
+char get_type_char(mode_t mode);
+
 #endif /* __LONG_OUT_H */

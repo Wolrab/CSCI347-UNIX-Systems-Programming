@@ -115,8 +115,8 @@ int get_primary_globals(primary_args_g *global_args) {
 /**
  * Takes a primary, its arg value, and globals, and returns its truth value
  *   for the given f_stat.
- * Returns: true if primary evaluates to true, false if it doesn't or if the
- *   primary does not exist.
+ * Returns: the truth value for the given primary.
+ * In the case that the primary doesn't exist, the program aborts.
  */
 bool primary_evaluate(primary_t primary, primary_arg *arg,\
         primary_args_g *globals, struct stat *f_stat) {
@@ -141,7 +141,9 @@ bool primary_evaluate(primary_t primary, primary_arg *arg,\
         ret = eval_type(f_stat, arg->char_arg);
         break;
     case PRIMARY_NUM:
-        break;
+        abort();
+    default:
+        abort();
     }
     return ret;
 }

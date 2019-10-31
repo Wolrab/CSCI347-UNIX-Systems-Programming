@@ -44,21 +44,7 @@ int long_out_parse(struct long_out_s *long_out, struct stat *f_stat, \
  * Fills a fixed sized character sequence representing important data from mode.
  */
 void parse_mode_str(char *mode_s, mode_t mode) {
-    if (S_ISREG(mode))
-        mode_s[0] = '-';
-    else if (S_ISDIR(mode))
-        mode_s[0] = 'd';
-    else if (S_ISLNK(mode))
-        mode_s[0] = 'l';
-    else if (S_ISFIFO(mode))
-        mode_s[0] = 'p';
-    else if (S_ISSOCK(mode))
-        mode_s[0] = 's';
-    else if (S_ISCHR(mode))
-        mode_s[0] = 'c';
-    else if (S_ISBLK(mode))
-        mode_s[0] = 'b';
-
+    mode_s[0] = get_type_char(mode);
     mode_s[1] = S_IRUSR & mode ? 'r' : '-';
     mode_s[2] = S_IWUSR & mode ? 'w' : '-';
     mode_s[3] = S_IXUSR & mode ? 'x' : '-';
@@ -153,4 +139,22 @@ void long_out_print(struct long_out_s *long_out) {
 void long_out_delete(struct long_out_s *long_out) {
     free(long_out->usr_str);
     free(long_out->grp_str);
+}
+
+/**
+ * Returns the character representation of the filetype of mode, and a '?'
+ *   if the filetype is invalid.
+ */
+char get_type_char(mode_t mode) {
+    static const char type_char[] = {'b', 'c', 'd', '-', 'l', 'p', 's', '?'};
+    static const int type[] = {S_IFBLK, S_IFCHR, S_IFDIR, S_IFREG, S_IFLNK, \
+        S_IFIFO, S_IFSOCK};
+    
+    mode &= S_IFMT;
+    int i = 0;
+    while (i < 7 && type[i] != mode) {
+        i++;
+    }
+
+    return type_char[i];
 }
