@@ -47,8 +47,8 @@ expr_err expression_create_primary(primary_node **node, char *primary_s, \
 // Adds a primary node to expression.
 void expression_add_primary(expression_t *expression, primary_node *node);
 
-// Evaluates the given expression against f_stat
-bool expression_evaluate(expression_t *expression, struct stat *f_stat);
+// Evaluates the given expression against entry
+bool expression_evaluate(expression_t *expression, FTSENT *entry);
 
 // Deletes expression.
 void expression_delete(expression_t *expression);

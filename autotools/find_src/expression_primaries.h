@@ -7,6 +7,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <fts.h>
 
 typedef enum primary primary_t;
 typedef enum arg_type arg_type;
@@ -63,12 +64,12 @@ struct stat* get_stat(char *path);
 //   and stores them in global_args.
 int get_primary_globals(primary_args_g *global_args);
 
-// Evaluates a primary against f_stat.
+// Evaluates a primary against entry.
 bool primary_evaluate(primary_t primary, primary_arg *arg,\
-    primary_args_g *globals, struct stat *f_stat);
+    primary_args_g *globals, FTSENT *entry);
 
 // Primary evaluation functions
-bool eval_cnewer(struct stat *f_stat, struct stat *o_stat);
+bool eval_cnewer(struct timespec *f_time, struct timespec *o_time);
 bool eval_cmin(struct stat *f_stat, long n, primary_args_g *global_args);
 bool eval_ctime(struct stat *f_stat, long n, primary_args_g *global_args);
 bool eval_mmin(struct stat *f_stat, long n, primary_args_g *global_args);

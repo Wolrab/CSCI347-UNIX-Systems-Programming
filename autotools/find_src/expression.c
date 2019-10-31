@@ -116,17 +116,17 @@ void expression_add_primary(expression_t *expression, primary_node *node) {
 }
 
 /**
- * Evaluates the expression against f_stat.
+ * Evaluates the expression against entry.
  * Returns: true if expression evaluates to true for all primaries, false
  *   otherwise
  */
-bool expression_evaluate(expression_t *expression, struct stat *f_stat) {
+bool expression_evaluate(expression_t *expression, FTSENT *entry) {
     primary_node *curr = expression->head;
     bool ret = true;
 
     while (ret && curr != NULL) {
         if (!primary_evaluate(curr->primary, &(curr->arg), \
-                &(expression->global_args), f_stat)) {
+                &(expression->global_args), entry)) {
             ret = false;
         }
         curr = curr->next;

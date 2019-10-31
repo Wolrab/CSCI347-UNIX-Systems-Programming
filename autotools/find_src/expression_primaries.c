@@ -119,26 +119,26 @@ int get_primary_globals(primary_args_g *global_args) {
  * In the case that the primary doesn't exist, the program aborts.
  */
 bool primary_evaluate(primary_t primary, primary_arg *arg,\
-        primary_args_g *globals, struct stat *f_stat) {
+        primary_args_g *globals, FTSENT *entry) {
     bool ret = false;
     switch(primary) {
     case CNEWER:
-        ret = eval_cnewer(f_stat, arg->stat_arg);
+        ret = eval_cnewer(entry->fts_statp, arg->stat_arg);
         break;
     case CMIN:
-        ret = eval_cmin(f_stat, arg->long_arg, globals);
+        ret = eval_cmin(entry->fts_statp, arg->long_arg, globals);
         break;
     case CTIME:
-        ret = eval_ctime(f_stat, arg->long_arg, globals);
+        ret = eval_ctime(entry->fts_statp, arg->long_arg, globals);
         break;
     case MMIN:
-        ret = eval_mmin(f_stat, arg->long_arg, globals);
+        ret = eval_mmin(entry->fts_statp, arg->long_arg, globals);
         break;
     case MTIME:
-        ret = eval_mtime(f_stat, arg->long_arg, globals);
+        ret = eval_mtime(entry->fts_statp, arg->long_arg, globals);
         break;
     case TYPE:
-        ret = eval_type(f_stat, arg->char_arg);
+        ret = eval_type(entry->fts_statp, arg->char_arg);
         break;
     case PRIMARY_NUM:
         abort();
@@ -152,10 +152,9 @@ bool primary_evaluate(primary_t primary, primary_arg *arg,\
 /**
  * Returns true if f_stat is newer than o_stat, false otherwise.
  */
-bool eval_cnewer(struct stat *f_stat, struct stat *o_stat) {
-    return f_stat->st_ctim.tv_sec > o_stat->st_ctim.tv_sec || \
-        (f_stat->st_ctim.tv_sec == o_stat->st_ctim.tv_sec && \
-         f_stat->st_ctim.tv_nsec > o_stat->st_ctim.tv_nsec);
+bool eval_cnewer(struct timespec *f_time, struct timespec *o_time) {
+    return f_time->tv_sec > o_time->tv_sec || \
+        (f_time->tv_sec == o_time->tv_sec && f_time->tv_nsec > o_time->tv_nsec);
 }
 
 /**

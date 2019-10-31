@@ -84,7 +84,7 @@ find_err descend_tree(FTS *file_tree, expression_t *expression, list *path_list)
     entry = fts_read(file_tree);
     while (entry != NULL) {
         if (entry->fts_info != FTS_DP && \
-        expression_evaluate(expression, entry->fts_statp)) {
+        expression_evaluate(expression, entry)) {
             n = list_create_node(entry->fts_path);
             if (n == NULL) {
                 return FIND_ERR_MALLOC;
