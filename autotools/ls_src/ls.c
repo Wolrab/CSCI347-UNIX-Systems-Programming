@@ -3,19 +3,61 @@
  *   the output.
  */
 
-#include "ls.h"
+#include <dirent.h>
+#include <stdbool.h>
+#include <assert.h>
+#include <limits.h>
+#include "list.h"
+#include "long_out.h"
 
-// Basic error message defines to make ls_perror easier on the eyes
-const char *const ls_err_msg[] = {
-    "no error",
-    "memory allocation error",
-    "error opening a directory stream",
-    "error reading a directory stream",
-    "error getting file statistics",
-    "warning: duplicate entry found",
-    "error converting path: overflow detected",
-    "error parsing long-format output"
+// All valid options for ls
+#define OPTION_STRING "al"
+
+// Option flags
+// Show files begining with .
+bool option_a = false;
+// Output files in long-format
+bool option_l = false;
+
+// Error definitions
+// Values are included for clarity
+typedef enum ls_err ls_err;
+enum ls_err {
+    LS_ERR_NONE = 0,
+    LS_ERR_MALLOC = 1,
+    LS_ERR_DIR_STREAM_OPEN = 2,
+    LS_ERR_DIR_STREAM_READ = 3,
+    LS_ERR_STAT = 4,
+    LS_ERR_PATH_OVERFLOW = 5,
+    LS_ERR_LONG_PARSE = 6
 };
+
+// List all the directory entries of path. Outputs the result to standard out.
+ls_err ls(char *path);
+
+// Gets all the entries located in path and stores them in dir_entries.
+ls_err get_entries(const char *path, list *dir_entries);
+
+// Parses ent at path. The value is stored in dir_entries.
+ls_err parse_entry(struct dirent *ent, const char *path, \
+        list *dir_entries);
+
+// Gets a file's full path from f_name and the path of the directory that 
+//   contains it, storing it in path_buf.
+ls_err get_full_path(char *path_buf, int path_buf_len, const char *f_name, \
+    const char *path);
+
+// Outputs all entries of dir_entries to stdout.
+void output_entries(list *dir_entries);
+
+// Output all entries of dir_entries to stdout using the long-format output.
+ls_err output_entries_long(list *dir_entries);
+
+// Sets the option flags given an array of arguments and their size.
+int get_options(const int argc, char **argv);
+
+// Basic error output for ls.
+void ls_perror(ls_err err, char *pname);
 
 /** 
  * Entry point for ls. Ensures arguments are defined and then calls ls
@@ -28,14 +70,14 @@ int main(int argc, char **argv) {
 
     ret = get_options(argc, argv);
     if (ret < 0) {
-        printf("Usage: ls [-%s]\n", OPTION_STRING);
-        return ret;
+        printf("Usage: %s [-%s]\n", argv[0], OPTION_STRING);
     }
-
-    err = ls(".");
-    if (err != LS_ERR_NONE) {
-        ls_perror(err, argv[0]);
-        ret = err;
+    else {
+        err = ls(".");
+        if (err != LS_ERR_NONE) {
+            ls_perror(err, argv[0]);
+            ret = err;
+        }
     }
 
     return ret;
@@ -53,16 +95,14 @@ ls_err ls(char *path) {
     ret = get_entries(path, &dir_entries);
     if (ret != LS_ERR_NONE) {
         list_delete(&dir_entries);
-        return ret;
     }
-
-    if (option_l) {
+    else if (option_l) {
         ret = output_entries_long(&dir_entries);
     }
     else {
         output_entries(&dir_entries);
     }
-    
+
     list_delete(&dir_entries);
     return ret;
 }
@@ -71,9 +111,7 @@ ls_err ls(char *path) {
  * Opens and iterates through a directory stream at path, and for each entry
  *   entering it into dir_entries with a call to parse_entry.
  * Returns: LS_ERR_NONE on success, and any other ls_err otherwise depending
- *   on the type of failure. It should be noted that LS_ERR_DUP_ENTRY is not
- *   fatal, but the value will be passed back as long as a fatal error doesn't
- *   occur before the function finishes.
+ *   on the type of failure.
  */
 ls_err get_entries(const char *path, list *dir_entries) {
     DIR *d = NULL;
@@ -83,28 +121,21 @@ ls_err get_entries(const char *path, list *dir_entries) {
     errno = 0;
     d = opendir(path);
     if (d == NULL) {
-        return LS_ERR_MALLOC;
+        ret = LS_ERR_DIR_STREAM_OPEN;
     }
-
-    errno = 0;
-    ent = readdir(d);
-    while (ent != NULL) {
-        if (!(option_a) && ent->d_name[0] == '.') {
-            errno = 0;
-            ent = readdir(d);
-            continue;
-        }
-
-        ret = parse_entry(ent, path, dir_entries);
-        if (ret != LS_ERR_NONE && ret != LS_ERR_DUP_ENTRY) {
-            return ret;
-        }
-
+    else {
         errno = 0;
         ent = readdir(d);
-    }
-    if (ent == NULL && errno) {
-        ret = LS_ERR_DIR_STREAM_READ;
+        while (ent != NULL && ret == LS_ERR_NONE) {
+            if (option_a || ent->d_name[0] != '.') {
+                ret = parse_entry(ent, path, dir_entries);
+            }
+            errno = 0;
+            ent = readdir(d);
+        }
+        if (ent == NULL && errno) {
+            ret = LS_ERR_DIR_STREAM_READ;
+        }
     }
 
     closedir(d);
@@ -125,37 +156,32 @@ ls_err parse_entry(struct dirent *ent, const char *path, \
     struct stat *ent_stat = NULL;
     char stat_path[PATH_MAX];
 
-    list_err err = LIST_ERR_NONE;
     ls_err ret = LS_ERR_NONE;
 
     if (option_l) {
         ret = get_full_path(stat_path, PATH_MAX, ent->d_name, path);
-        if (ret == LS_ERR_PATH_OVERFLOW) {
-            return ret;
-        }
-
-        errno = 0;
-        ent_stat = malloc(sizeof(struct stat));
-        if (ent_stat == NULL) {
-            return LS_ERR_MALLOC;
-        }
-
-        if (lstat(stat_path, ent_stat) < 0) {
-            free(ent_stat);
-            return LS_ERR_STAT;
+        if (ret == LS_ERR_NONE) {
+            errno = 0;
+            ent_stat = malloc(sizeof(struct stat));
+            if (ent_stat == NULL) {
+                ret = LS_ERR_MALLOC;
+            }
+            else if (lstat(stat_path, ent_stat) < 0) {
+                free(ent_stat);
+                ret = LS_ERR_STAT;
+            }
         }
     }
 
-    ent_node = list_create_node(ent->d_name, ent_stat);
-    if (ent_node == NULL) {
-        return LS_ERR_MALLOC;
+    if (ret == LS_ERR_NONE) {    
+        ent_node = list_create_node(ent->d_name, ent_stat);
+        if (ent_node == NULL) {
+            ret = LS_ERR_MALLOC;
+        }
+        else {
+            list_insert_ordered(dir_entries, ent_node);
+        }
     }
-
-    err = list_insert_ordered(dir_entries, ent_node);
-    if (err == LIST_ERR_DUP_ENTRY) {
-        ret = LS_ERR_DUP_ENTRY;
-    }
-
     return ret;
 }
 
@@ -170,15 +196,16 @@ ls_err get_full_path(char *path_buf, int path_buf_len, const char *f_name, \
     ls_err ret = LS_ERR_NONE;
 
     if (strlen(path) + strlen(f_name) + 1 > path_buf_len) {
-        return LS_ERR_PATH_OVERFLOW;
+        ret = LS_ERR_PATH_OVERFLOW;
     }
-
-    memcpy(path_buf, path, strlen(path) + 1);
-    if (path_buf[strlen(path)-1] != '/') {
-        path_buf[strlen(path)+1] = '\0';
-        path_buf[strlen(path)] = '/';
+    else {
+        memcpy(path_buf, path, strlen(path) + 1);
+        if (path_buf[strlen(path)-1] != '/') {
+            path_buf[strlen(path)+1] = '\0';
+            path_buf[strlen(path)] = '/';
+        }
+        memcpy(path_buf + strlen(path_buf), f_name, strlen(f_name) + 1);
     }
-    memcpy(path_buf + strlen(path_buf), f_name, strlen(f_name) + 1);
 
     return ret;
 }
@@ -208,17 +235,18 @@ ls_err output_entries_long(list *dir_entries) {
     ls_err ret = LS_ERR_NONE;
     
     curr = *dir_entries;
-    while (curr != NULL) {
+    while (curr != NULL && ret == LS_ERR_NONE) {
         assert(curr->data.f_stat != NULL);
 
         err = long_out_parse(&long_out, curr->data.f_stat, curr->data.f_name);
         if (err < 0) {
-            return LS_ERR_LONG_PARSE;
+            ret = LS_ERR_LONG_PARSE;
         }
-
-        long_out_print(&long_out);
-        long_out_delete(&long_out);
-        curr = curr->next;
+        else {
+            long_out_print(&long_out);
+            long_out_delete(&long_out);
+            curr = curr->next;
+        }
     }
     return ret;
 }
@@ -259,16 +287,27 @@ int get_options(const int argc, char **argv) {
  *   library calls that would reset errno.
  */
 void ls_perror(ls_err err, char *pname) {
+    static const char *const ls_err_msg[] = {
+        ": no error",
+        ": memory allocation error",
+        ": error opening a directory stream",
+        ": error reading a directory stream",
+        ": error getting file statistics",
+        ": error converting path: overflow detected",
+        ": error parsing long-format output"
+    };
     char str_buf[4096];
-    int temp = errno;
-    memcpy(str_buf, pname, strlen(pname) + 1);
-    memcpy(str_buf + strlen(pname), ls_err_msg[err], \
-        strlen(ls_err_msg[err]) + 1);
-    if (err) {
-        errno = temp;
+    int errno_temp = errno;
+
+    if (errno_temp) {
+        memcpy(str_buf, pname, strlen(pname) + 1);
+        memcpy(str_buf + strlen(pname), ls_err_msg[err], \
+            strlen(ls_err_msg[err]) + 1);
+    
+        errno = errno_temp;
         perror(str_buf);
     }
     else {
-        fprintf(stderr, "%s: %s", pname, str_buf);
+        fprintf(stderr, "%s%s", pname, ls_err_msg[err]);
     }
 }

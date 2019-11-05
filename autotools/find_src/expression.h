@@ -5,7 +5,8 @@
 #include <math.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "expression_primaries.h"
+#include "expression_prim.h"
+#include "expression_prim_parse.h"
 
 typedef struct primary_node primary_node;
 typedef struct expression expression_t;
@@ -27,27 +28,29 @@ struct expression {
 
 // Error defines
 enum expr_err {
-    EXPR_ERR_NONE = 0,
-    EXPR_ERR_MALLOC = 1,
+    EXPR_ERR_NONE    = 0,
+    EXPR_ERR_MALLOC  = 1,
     EXPR_ERR_GLOBALS = 2,
     EXPR_ERR_PRIMARY = 3,
-    EXPR_ERR_ARG = 4,
-    EXPR_ERR_NO_ARG = 5
+    EXPR_ERR_ARG     = 4,
+    EXPR_ERR_NO_ARG  = 5
 };
 
 // Creates an expression. expression is expected to be already allocated.
+//   expr_argv must be null-terminated.
 expr_err expression_create(expression_t *expression, int expr_argc, \
     char **expr_argv);
 
-// Creates a primary node. Allocation of primary_node is done here, the
-//   primary_node pointer that node points too must exist though.
-expr_err expression_create_primary(primary_node **node, char *primary_s, \
-    char *primary_arg_s);
+// Creates a primary node. Allocation of primary_node is done here, so node must
+//   point to valid memory. primary_arg_i is moved to the next index after most
+//   recently parsed arg and must be NULL terminated.
+expr_err expression_create_primary(primary_node **node, char *primary_str, \
+    char ***primary_arg_i);
 
 // Adds a primary node to expression.
 void expression_add_primary(expression_t *expression, primary_node *node);
 
-// Evaluates the given expression against entry
+// Evaluates the given expression against entry.
 bool expression_evaluate(expression_t *expression, FTSENT *entry);
 
 // Deletes expression.

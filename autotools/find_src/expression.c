@@ -4,7 +4,7 @@
  * An expression is made up of primaries connected by operators. A primary
  *   is the smallest unit of an expression, and takes a minimum of two values:
  *     -The stat information of a file
- *     -An argument given at the time of the expression's creation
+ *     -One or more arguments given at the time of the expression's creation
  * Other primaries also need extra information about the state of the program
  *   or system. This information doesn't change during execution.
  * Operators are just logical connectives between primaries, but for now the
@@ -22,36 +22,43 @@
 
 /**
  * Creates an expression from a list of string arguments. Because each primary
- *   must have both the name of the primary and an argument, it creates
- *   each primary by incrementing by two arguments at a time, parsing them and
- *   adding them to the expression.
+ *   must have both the name of the primary and one or more arguments, 
+ *   expression_create_primary moves primary_arg_i to the next index after the
+ *   last parsed arg, and this is the position of the start of the next primary.
+ *   On an error, primary_arg_i is not moved and cleanup of any already
+ *   processed elements is done.
  * Returns: EXPR_ERR_NONE on success, and any other expr_err value if some
  *   part of the parsing fails.
  */
 expr_err expression_create(expression_t *expression, int expr_argc, \
         char **expr_argv) {
     primary_node *node = NULL;
+    char *primary_str = NULL, **primary_arg_i = NULL;
     expr_err ret = EXPR_ERR_NONE;
 
     assert(expression != NULL);
     if (get_primary_globals(&(expression->global_args)) < 0) {
         return EXPR_ERR_GLOBALS;
     }
+
     expression->head = NULL;
+    if (expr_argv[0] == NULL) {
+        return EXPR_ERR_NONE;
+    }
     
-    int i = 0;
-    while (i+1 < expr_argc) {
-        ret = expression_create_primary(&node, expr_argv[i], expr_argv[i+1]);
+    primary_str = expr_argv[0];
+    primary_arg_i = &(expr_argv[1]);
+    while (primary_str != NULL) {
+        ret = expression_create_primary(&node, primary_str, &primary_arg_i);
         if (ret != EXPR_ERR_NONE) {
             goto cleanup;
         }
         expression_add_primary(expression, node);
-        i += 2;
-    }
 
-    if (i+1 == expr_argc) {
-        ret = EXPR_ERR_NO_ARG;
-        goto cleanup;
+        primary_str = primary_arg_i[0];
+        if (primary_arg_i[0] != NULL) {
+            primary_arg_i = &(primary_arg_i[1]);
+        }
     }
     return ret;
 
@@ -61,28 +68,32 @@ expr_err expression_create(expression_t *expression, int expr_argc, \
 }
 
 /**
- * Parses primary_s and primary_arg_s and allocates a new primary node to
- *   hold those values.
+ * TODO:
  * Returns: EXPR_ERR_NONE on success, and otherwise returns an expr_err
  *   indicating what part of the parsing/allocating process failed.
  */
-expr_err expression_create_primary(primary_node **node, char *primary_s, \
-        char *primary_arg_s) {
+expr_err expression_create_primary(primary_node **node, char *primary_str, \
+        char ***primary_arg_i) {
     expr_err ret = EXPR_ERR_NONE;
-    
+
     errno = 0;
     *node = malloc(sizeof(primary_node));
     if (*node == NULL) {
         ret = EXPR_ERR_MALLOC;
         goto cleanup;
     }
+    
+    if (primary_arg_i == NULL) {
+        ret = EXPR_ERR_NO_ARG;
+        goto cleanup;
+    }
 
-    if (primary_parse(&((*node)->primary), primary_s) < 0) {
+    if (primary_parse(&((*node)->primary), primary_str) < 0) {
         ret = EXPR_ERR_PRIMARY;
         goto cleanup;
     }
 
-    if (primary_arg_parse((*node)->primary, &((*node)->arg), primary_arg_s)<0) {
+    if (primary_arg_parse((*node)->primary, &((*node)->arg), primary_arg_i)<0) {
         ret = EXPR_ERR_ARG;
         goto cleanup;
     }

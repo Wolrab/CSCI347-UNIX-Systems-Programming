@@ -2,13 +2,13 @@
 #define __LONG_OUT_H
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <stdio.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <grp.h>
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <errno.h>
 
 // Defines for long_out_s

@@ -13,30 +13,26 @@ int long_out_parse(struct long_out_s *long_out, struct stat *f_stat, \
         char *f_name) {
     int ret = 0;
     ret = parse_usr_str(&(long_out->usr_str), f_stat->st_uid);
-    if (ret < 0) {
-        return ret;
-    }
-
-    ret = parse_grp_str(&(long_out->grp_str), f_stat->st_gid);
-    if (ret < 0) {
-        goto cleanup_usr;
+    if (ret == 0) {
+        ret = parse_grp_str(&(long_out->grp_str), f_stat->st_gid);
+        if (ret < 0) {
+            free(long_out->usr_str);
+        }
+        else {
+            ret = parse_mtim_str(long_out->mtim_str, f_stat->st_mtime);
+            if (ret < 0) {
+                free(long_out->usr_str);
+                free(long_out->grp_str);
+            }
+            else {
+                parse_mode_str(long_out->mode_str, f_stat->st_mode);
+                long_out->nlink = f_stat->st_nlink;
+                long_out->size = f_stat->st_size;
+                long_out->f_name = f_name;
+            }
+        }
     }
     
-    ret = parse_mtim_str(long_out->mtim_str, f_stat->st_mtime);
-    if (ret < 0) {
-        goto cleanup_group_usr;
-    }
-
-    parse_mode_str(long_out->mode_str, f_stat->st_mode);
-    long_out->nlink = f_stat->st_nlink;
-    long_out->size = f_stat->st_size;
-    long_out->f_name = f_name;
-    return ret;
-
-    cleanup_group_usr:
-    free(long_out->grp_str);
-    cleanup_usr:
-    free(long_out->usr_str);
     return ret;
 }
 
@@ -68,17 +64,19 @@ int parse_usr_str(char **usr_str, uid_t uid) {
 
     passwd_ent = getpwuid(uid);
     if (passwd_ent == NULL) {
-        return -1;
+        // TODO: Get cool string
     }
-
-    errno = 0;
-    *usr_str = malloc(strlen(passwd_ent->pw_name) + 1);
-    if (*usr_str == NULL && errno) {
-        return -1;
+    else {
+        errno = 0;
+        *usr_str = malloc(strlen(passwd_ent->pw_name) + 1);
+        if (*usr_str == NULL && errno) {
+            ret = -1;
+        }
+        else {
+            memcpy(*usr_str, passwd_ent->pw_name, \
+                strlen(passwd_ent->pw_name) + 1);
+        }
     }
-
-    memcpy(*usr_str, passwd_ent->pw_name, strlen(passwd_ent->pw_name) + 1);
-
     return ret;
 }
 
@@ -93,17 +91,19 @@ int parse_grp_str(char **grp_str, gid_t gid) {
 
     group_ent = getgrgid(gid);
     if (group_ent == NULL) {
-        return -1;
+        // TODO: Get cool string
     }
-
-    errno = 0;
-    *grp_str = malloc(strlen(group_ent->gr_name) + 1);
-    if (*grp_str == NULL && errno) {
-        return -1;
+    else {
+        errno = 0;
+        *grp_str = malloc(strlen(group_ent->gr_name) + 1);
+        if (*grp_str == NULL && errno) {
+            ret = -1;
+        }
+        else {
+            memcpy(*grp_str, group_ent->gr_name, \
+                strlen(group_ent->gr_name) + 1);
+        }
     }
-
-    memcpy(*grp_str, group_ent->gr_name, strlen(group_ent->gr_name) + 1);
-
     return ret;
 }
 
