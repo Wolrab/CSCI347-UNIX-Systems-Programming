@@ -60,11 +60,20 @@ void parse_mode_str(char *mode_s, mode_t mode) {
  */
 int parse_usr_str(char **usr_str, uid_t uid) {
     struct passwd *passwd_ent;
+    char num_buf[32];
     int ret = 0;
 
     passwd_ent = getpwuid(uid);
     if (passwd_ent == NULL) {
-        // TODO: Get cool string
+        sprintf(num_buf, "%d", uid);
+        errno = 0;
+        *usr_str = malloc(strlen(num_buf)+1);
+        if (*usr_str == NULL && errno) {
+            ret = -1;
+        }
+        else {
+            memcpy(*usr_str, num_buf, strlen(num_buf)+1);
+        }
     }
     else {
         errno = 0;
@@ -87,11 +96,20 @@ int parse_usr_str(char **usr_str, uid_t uid) {
  */
 int parse_grp_str(char **grp_str, gid_t gid) {
     struct group *group_ent;
+    char num_buf[32];
     int ret = 0;
 
     group_ent = getgrgid(gid);
     if (group_ent == NULL) {
-        // TODO: Get cool string
+        sprintf(num_buf, "%ud", gid);
+        errno = 0;
+        *grp_str = malloc(strlen(num_buf)+1);
+        if (*grp_str == NULL && errno) {
+            ret = -1;
+        }
+        else {
+            memcpy(*grp_str, num_buf, strlen(num_buf)+1);
+        }
     }
     else {
         errno = 0;
