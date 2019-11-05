@@ -16,6 +16,8 @@ typedef enum arg_type arg_type;
 typedef union primary_arg primary_arg;
 typedef struct primary_args_g primary_args_g;
 
+typedef char** argv_t;
+
 // For finding the nearest day
 #define SEC_PER_DAY 86400
 #define SEC_PER_MIN 60
@@ -53,7 +55,7 @@ union primary_arg {
     long long_arg;
     char char_arg;
     struct timespec *ctim_arg;
-    char **argv_arg;
+    argv_t argv_arg;
 };
 
 // Args available to all primaries

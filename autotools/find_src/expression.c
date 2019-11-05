@@ -38,32 +38,30 @@ expr_err expression_create(expression_t *expression, int expr_argc, \
 
     assert(expression != NULL);
     if (get_primary_globals(&(expression->global_args)) < 0) {
-        return EXPR_ERR_GLOBALS;
+        ret = EXPR_ERR_GLOBALS;
     }
+    else {
+        expression->head = NULL;
+        if (expr_argv[0] != NULL) {
+            primary_str = expr_argv[0];
+            primary_arg_i = &(expr_argv[1]);
+            while (primary_str != NULL && ret == EXPR_ERR_NONE) {
+                ret = expression_create_primary(&node, primary_str, \
+                    &primary_arg_i);
+                if (ret != EXPR_ERR_NONE) {
+                    expression_delete(expression);
+                }
+                else {
+                    expression_add_primary(expression, node);
 
-    expression->head = NULL;
-    if (expr_argv[0] == NULL) {
-        return EXPR_ERR_NONE;
-    }
-    
-    primary_str = expr_argv[0];
-    primary_arg_i = &(expr_argv[1]);
-    while (primary_str != NULL) {
-        ret = expression_create_primary(&node, primary_str, &primary_arg_i);
-        if (ret != EXPR_ERR_NONE) {
-            goto cleanup;
+                    primary_str = primary_arg_i[0];
+                    if (primary_arg_i[0] != NULL) {
+                        primary_arg_i = &(primary_arg_i[1]);
+                    }
+                }
+            }
         }
-        expression_add_primary(expression, node);
-
-        primary_str = primary_arg_i[0];
-        if (primary_arg_i[0] != NULL) {
-            primary_arg_i = &(primary_arg_i[1]);
-        }
     }
-    return ret;
-
-    cleanup:
-    expression_delete(expression);
     return ret;
 }
 
@@ -80,31 +78,25 @@ expr_err expression_create_primary(primary_node **node, char *primary_str, \
     *node = malloc(sizeof(primary_node));
     if (*node == NULL) {
         ret = EXPR_ERR_MALLOC;
-        goto cleanup;
     }
-    
-    if (primary_arg_i == NULL) {
+    else if ((*primary_arg_i)[0] == NULL) {
         ret = EXPR_ERR_NO_ARG;
-        goto cleanup;
-    }
-
-    if (primary_parse(&((*node)->primary), primary_str) < 0) {
-        ret = EXPR_ERR_PRIMARY;
-        goto cleanup;
-    }
-
-    if (primary_arg_parse((*node)->primary, &((*node)->arg), primary_arg_i)<0) {
-        ret = EXPR_ERR_ARG;
-        goto cleanup;
-    }
-
-    (*node)->next = NULL;
-    return ret;
-
-    cleanup:
-    if (*node != NULL) {
         free(*node);
         *node = NULL;
+    }
+    else if (primary_parse(&((*node)->primary), primary_str) < 0) {
+        ret = EXPR_ERR_PRIMARY;
+        free(*node);
+        *node = NULL;
+    }
+    else if (primary_arg_parse((*node)->primary, &((*node)->arg), \
+            primary_arg_i)<0) {
+        ret = EXPR_ERR_ARG;
+        free(*node);
+        *node = NULL;
+    }
+    else {
+        (*node)->next = NULL;
     }
     return ret;
 }
@@ -117,13 +109,13 @@ void expression_add_primary(expression_t *expression, primary_node *node) {
     primary_node *curr = expression->head;
     if (curr == NULL) {
         expression->head = node;
-        return;
     }
-
-    while (curr->next != NULL) {
-        curr = curr->next;
+    else {
+        while (curr->next != NULL) {
+            curr = curr->next;
+        }
+        curr->next = node;
     }
-    curr->next = node;
 }
 
 /**
@@ -140,7 +132,9 @@ bool expression_evaluate(expression_t *expression, FTSENT *entry) {
                 &(expression->global_args), entry)) {
             ret = false;
         }
-        curr = curr->next;
+        else {
+            curr = curr->next;
+        }
     }
     return ret;
 }

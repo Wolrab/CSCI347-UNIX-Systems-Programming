@@ -19,8 +19,7 @@ bool primary_evaluate(primary_t primary, primary_arg *arg,\
     bool ret = false;
     switch(primary) {
     case CNEWER:
-        ret = eval_cnewer(&(entry->fts_statp->st_ctim), \
-                          &(arg->ctim_arg));
+        ret = eval_cnewer(&(entry->fts_statp->st_ctim), arg->ctim_arg);
         break;
     case CMIN:
         ret = eval_cmin(&(entry->fts_statp->st_ctim), arg->long_arg, globals);
@@ -39,7 +38,7 @@ bool primary_evaluate(primary_t primary, primary_arg *arg,\
         break;
     case EXEC:
         // TODO: This can't be the logic here. Needs way more overhead.
-        ret = eval_type(entry->fts_path, arg->argv_arg);
+        ret = eval_exec(entry->fts_path, arg->argv_arg);
         break;
     case PRIMARY_NUM:
         abort();
@@ -107,7 +106,7 @@ bool eval_type(mode_t mode, char t) {
  * TODO: This is not a cut and dry fucking true or false if shit goes sideways.
  */
 bool eval_exec(char *path, char **argv) {
-
+    return false;
 }
 
 // Helpers for primary evaluation functions

@@ -12,15 +12,17 @@ int primary_parse(primary_t *primary, char *arg_s);
 //   Consumes args until a valid argument for primary is found or an error
 //   occurs. Result is stored in arg.
 // After successfull parsing, arg_i points to the element in the arg array
-//   immediately after the last consumed element, so the arg array must be null-
-//   terminated.
-int primary_arg_parse(primary_t primary, primary_arg *arg, char ***arg_i);
+//   immediately after the last consumed element, so the arg array that arg_i
+//   references must be null-terminated.
+int primary_arg_parse(primary_t primary, primary_arg *arg, argv_t *arg_i);
 
 // Helpers for primary_arg_parse
-long get_arg_long(char ***arg_i);
-char get_arg_char(char ***arg_i);
-struct timespec* get_arg_ctim(char ***arg_i);
-char** get_arg_argv(char ***arg_i);
+int get_arg_long(primary_arg *arg, argv_t *arg_i);
+int get_arg_char(primary_arg *arg, argv_t *arg_i);
+int get_arg_ctim(primary_arg *arg, argv_t *arg_i);
+int get_arg_argv(primary_arg *arg, argv_t*arg_i);
+
+void incr_arg(argv_t *arg_i, int i);
 
 // Gets arguments usable by all primaries from the program/system state
 //   and stores them in global_args.

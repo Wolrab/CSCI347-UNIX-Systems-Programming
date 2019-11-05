@@ -10,21 +10,26 @@ const char *const primary_str[] = {"-cnewer", "-cmin", "-ctime", "-mmin", \
 const arg_type primary_arg_type[] = {ARG_CTIM, ARG_LONG, ARG_LONG, ARG_LONG, \
     ARG_LONG, ARG_CHAR, ARG_ARGV};
 
-
 /**
  * Parses arg_s and puts the corresponding primary_t into primary. Since
- *   primary_t is an enum, the primary we are looking for is just the index
+ *   primary_t is an enum, the primary we are looking for is the index
  *   where primary_str matches str.
  * Returns: 0 on success, and -1 if arg_s does not correspond to a primary.
  */
 int primary_parse(primary_t *primary, char *arg_s) {
-    int prim = 0;
+    unsigned int prim = 0;
+    int ret = 0;
     while (prim < PRIMARY_NUM && \
             strncmp(arg_s, primary_str[prim], strlen(primary_str[prim])) != 0) {
         prim++;
     }
-    *primary = prim;
-    return (prim == PRIMARY_NUM ? -1 : 0);
+    if (prim == PRIMARY_NUM) {
+        ret = -1;
+    }
+    else {
+        *primary = prim;
+    }
+    return ret;
 }
 
 /**
@@ -34,21 +39,20 @@ int primary_parse(primary_t *primary, char *arg_s) {
  *   the returns and errors if necessary.
  * Returns: 0 on success, -1 if the arg could not be parsed.
  */
-int primary_arg_parse(primary_t primary, primary_arg *arg, \
-        char ***arg_i) {
+int primary_arg_parse(primary_t primary, primary_arg *arg, argv_t *arg_i) {
     int ret = 0;
     switch(primary_arg_type[primary]) {
     case ARG_LONG:
-        // ret = helperfunction
+        ret = get_arg_long(arg, arg_i);
         break;
     case ARG_CHAR:
-        // ret = helperfunction
+        ret = get_arg_char(arg, arg_i);
         break;
     case ARG_CTIM:
-        // ret = helperfunction
+        ret = get_arg_ctim(arg, arg_i);
         break;
     case ARG_ARGV:
-        // ret = helperfunction
+        ret = get_arg_argv(arg, arg_i);
         break;
     default:
         ret = -1;
@@ -57,71 +61,90 @@ int primary_arg_parse(primary_t primary, primary_arg *arg, \
 }
 
 /**
- * TODO:
- */
-long get_arg_long(char ***arg_i) {
-
-}
-
-/**
- * TODO:
- */
-char get_arg_char(char ***arg_i) {
-    
-}
-
-/**
- * Expected Input: A path to a file
+ * Expected arg: A string representing a long integer
  * Consumes: 1 arg
- * Output: A copy of the ctim entry from the file's stat struct or NULL on
- *   error.
+ * Returns: 0 on success or -1 on error
  */
-struct timespec* get_arg_ctim(char ***arg_i) {
+int get_arg_long(primary_arg *arg, argv_t *arg_i) {
+    arg->long_arg = strtol((*arg_i)[0], NULL, 10);
+    incr_arg(arg_i, 1);
+    return 0;
+}
+
+/**
+ * Expected arg: A single character
+ * Consumes: 1 arg
+ * Returns: 0 on success or -1 on error
+ */
+int get_arg_char(primary_arg *arg, argv_t *arg_i) {
+    int ret = 0;
+    if (strlen((*arg_i)[0]) != 1) {
+        ret = -1;
+    }
+    else {
+        arg->char_arg = (*arg_i)[0][0];
+        incr_arg(arg_i, 1);
+    }
+    return ret;
+}
+
+/**
+ * Expected arg: A path to a file
+ * Consumes: 1 arg
+ * Returns: 0 on success or -1 on error
+ */
+int get_arg_ctim(primary_arg *arg, argv_t *arg_i) {
     struct stat f_stat;
     struct timespec *ctim;
+    int ret = 0;
 
     errno = 0;
     ctim = malloc(sizeof(struct timespec));
     if (ctim == NULL) {
-        return NULL;
+        ret = -1;
     }
-
-    if (stat((*arg_i)[0], &f_stat) < 0) {
+    else if (stat((*arg_i)[0], &f_stat) < 0) {
         free(ctim);
-        return NULL;
+        ret = -1;
     }
-
-    memcpy(ctim, f_stat.st_ctim, sizeof(struct timespec));
-    (*arg_i) = (*arg_i) + 1;
-
-    return ctim;
+    else {
+        memcpy(ctim, &(f_stat.st_ctim), sizeof(struct timespec));
+        arg->ctim_arg = ctim;
+        incr_arg(arg_i, 1);
+    }
+    return ret;
 }
 
 /**
- * Expected Input: An array of args to execute a program terminated by a ';'
- * Consumes: >=2 args, minimum number being the program followed by ';'
- * Output: A pointer to the start of the args formatted appropriately for
- *   execvp(3) or NULL on error.
+ * Expected args: An array of args to execute a program terminated by
+ *   PRIM_EXEC_ARGS_END.
+ * Consumes: >=2 args, minimum number being the program followed by
+ *   PRIM_EXEC_ARGS_END.
+ * Returns: 0 on success or -1 if the args are not terminated with
+ *   PRIM_EXEC_ARGS_END.
  */
-char** get_arg_argv(char ***arg_i) {
-    char **arg_curr = (*arg_i)[0];
+int get_arg_argv(primary_arg *arg, argv_t *arg_i) {
+    argv_t arg_curr = *arg_i;
+    int ret = 0;
     
     int i = 0;
-    int arg_end = !strncmp(PRIM_EXEC_ARGS_END, arg_curr[i], \
-            strlen(PRIM_EXEC_ARGS_END));
-    while (arg_curr[i] != NULL || arg_end) {
+    while (arg_curr[i] != NULL && !strncmp(PRIM_EXEC_ARGS_END, arg_curr[i], \
+            strlen(arg_curr[i]))) {
         i++;
-        arg_end = !strncmp(PRIM_EXEC_ARGS_END, arg_curr[i], \
-            strlen(PRIM_EXEC_ARGS_END));
     }
 
-    if (i == 0 || arg_curr[i] == NULL) {
-        return NULL;
+    if (arg_curr[i] == NULL) {
+        ret = -1;
     }
+    else {
+        arg_curr[i] = NULL;
+        incr_arg(arg_i, i + 1);
+    }
+    return ret;
+}
 
-    arg_curr[i] = NULL;
-    (*arg_i) = (*arg_i) + i + 1;
-    return arg_curr;
+void incr_arg(argv_t *arg_i, int i) {
+    *arg_i = (*arg_i) + i;
 }
 
 /**
