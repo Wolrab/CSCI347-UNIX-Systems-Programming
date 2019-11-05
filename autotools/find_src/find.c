@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
         }
         else {
             f_err = find(argv[1], &expression);
-            if (f_err) {
+            if (f_err != EXPR_ERR_NONE) {
                 find_perror(f_err, argv[0]);
                 ret = 1;
             }

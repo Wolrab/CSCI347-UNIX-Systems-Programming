@@ -1,5 +1,7 @@
 #ifndef __EXPRESSION_PRIM_H
 #define __EXPRESSION_PRIM_H
+#include <unistd.h>
+#include <sys/wait.h>
 #include "expression_prim_defs.h"
 
 #define PRIM_EXEC_PATH_EXPAND "{}"

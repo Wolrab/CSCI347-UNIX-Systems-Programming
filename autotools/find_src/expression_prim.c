@@ -105,8 +105,18 @@ bool eval_type(mode_t mode, char t) {
 /**
  * TODO: This is not a cut and dry fucking true or false if shit goes sideways.
  */
-bool eval_exec(char *path, char **argv) {
-    return false;
+bool eval_exec(char *path, argv_t argv) {
+    pid_t pid;
+    int status, ret;
+    pid = fork();
+    if (pid == 0) {
+        execvp(argv[0], &(argv[1]));
+        return -1;
+    }
+    else if (waitpid(pid, &status, 0) == -1) {
+        status = -1;
+    }
+    return status == 0;
 }
 
 // Helpers for primary evaluation functions
