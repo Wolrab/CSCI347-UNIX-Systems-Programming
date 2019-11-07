@@ -123,21 +123,21 @@ int get_arg_ctim(primary_arg *arg, argv_t *arg_i) {
  * Returns: 0 on success or -1 if the args are not terminated with
  *   PRIM_EXEC_ARGS_END.
  */
+#include <stdio.h>
 int get_arg_argv(primary_arg *arg, argv_t *arg_i) {
-    argv_t arg_curr = *arg_i;
-    int ret = 0;
-    
-    int i = 0;
-    while (arg_curr[i] != NULL && !strncmp(PRIM_EXEC_ARGS_END, arg_curr[i], \
-            strlen(arg_curr[i]))) {
+    int ret = 0, i = 0;
+
+    while ((*arg_i)[i] != NULL && strncmp(PRIM_EXEC_ARGS_END, (*arg_i)[i], \
+            strlen((*arg_i)[i]) + 1)) {
         i++;
     }
 
-    if (arg_curr[i] == NULL) {
+    if ((*arg_i)[i] == NULL) {
         ret = -1;
     }
     else {
-        arg_curr[i] = NULL;
+        (*arg_i)[i] = NULL;
+        arg->argv_arg = *arg_i;
         incr_arg(arg_i, i + 1);
     }
     return ret;

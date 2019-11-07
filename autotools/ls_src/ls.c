@@ -199,12 +199,12 @@ ls_err get_full_path(char *path_buf, int path_buf_len, const char *f_name, \
         ret = LS_ERR_PATH_OVERFLOW;
     }
     else {
-        memcpy(path_buf, path, strlen(path) + 1);
+        strncpy(path_buf, path, strlen(path) + 1);
         if (path_buf[strlen(path)-1] != '/') {
             path_buf[strlen(path)+1] = '\0';
             path_buf[strlen(path)] = '/';
         }
-        memcpy(path_buf + strlen(path_buf), f_name, strlen(f_name) + 1);
+        strncpy(path_buf + strlen(path_buf), f_name, strlen(f_name) + 1);
     }
 
     return ret;

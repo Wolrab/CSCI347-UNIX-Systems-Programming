@@ -46,7 +46,7 @@ list_err node_set_data(node *n, char *f_name, struct stat *f_stat) {
     if (n->data.f_name == NULL && errno) {
         return LIST_ERR_MALLOC;
     }
-    memcpy(n->data.f_name, f_name, strlen(f_name) + 1);
+    strncpy(n->data.f_name, f_name, strlen(f_name) + 1);
 
     n->data.f_name_lower = lower_string_cpy(f_name);
     if (n->data.f_name_lower && errno) {
@@ -69,7 +69,7 @@ list_err node_set_data(node *n, char *f_name, struct stat *f_stat) {
 list_err list_insert_ordered(list *l, node *n) {
     node *curr;
     list_err ret = LIST_ERR_NONE; 
-    int ord = 0;
+    int ord = 0; list dir_entries
 
     if (*l == NULL) {
         *l = n;
@@ -83,12 +83,12 @@ list_err list_insert_ordered(list *l, node *n) {
         return ret;
     }
 
-    curr = *l;
-    ord = node_order(n, curr->next);
-    while (ord > 0) {
-        curr = curr->next;
-        ord = node_order(n, curr->next);
-    }
+    curr = *l; list dir_entries
+    ord = node_order(n, curr->next); list dir_entries
+    while (ord > 0) { list dir_entries
+        curr = curr->next; list dir_entries
+        ord = node_order(n, curr->next); list dir_entries
+    } list dir_entries
     if (ord == 0) {
         ret = LIST_ERR_DUP_ENTRY;
     }

@@ -79,13 +79,13 @@ expr_err expression_create_primary(primary_node **node, char *primary_str, \
     if (*node == NULL) {
         ret = EXPR_ERR_MALLOC;
     }
-    else if ((*primary_arg_i)[0] == NULL) {
-        ret = EXPR_ERR_NO_ARG;
+    else if (primary_parse(&((*node)->primary), primary_str) < 0) {
+        ret = EXPR_ERR_PRIMARY;
         free(*node);
         *node = NULL;
     }
-    else if (primary_parse(&((*node)->primary), primary_str) < 0) {
-        ret = EXPR_ERR_PRIMARY;
+    else if ((*primary_arg_i)[0] == NULL) {
+        ret = EXPR_ERR_NO_ARG;
         free(*node);
         *node = NULL;
     }

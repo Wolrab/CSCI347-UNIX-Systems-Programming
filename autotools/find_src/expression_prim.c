@@ -108,6 +108,7 @@ bool eval_type(mode_t mode, char t) {
 bool eval_exec(char *path, argv_t argv) {
     pid_t pid;
     int status, ret;
+
     pid = fork();
     if (pid == 0) {
         execvp(argv[0], &(argv[1]));
