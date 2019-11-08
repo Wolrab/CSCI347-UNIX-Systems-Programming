@@ -126,6 +126,7 @@ int get_arg_ctim(primary_arg *arg, argv_t *arg_i) {
 #include <stdio.h>
 int get_arg_argv(primary_arg *arg, argv_t *arg_i) {
     int ret = 0, i = 0;
+    argv_t argv_cpy;
 
     while ((*arg_i)[i] != NULL && strncmp(PRIM_EXEC_ARGS_END, (*arg_i)[i], \
             strlen((*arg_i)[i]) + 1)) {
@@ -136,9 +137,17 @@ int get_arg_argv(primary_arg *arg, argv_t *arg_i) {
         ret = -1;
     }
     else {
-        (*arg_i)[i] = NULL;
-        arg->argv_arg = *arg_i;
-        incr_arg(arg_i, i + 1);
+        errno = 0;
+        argv_cpy = malloc(sizeof(char*) * (i + 1));
+        if (argv_cpy == NULL) {
+            ret = -1;
+        }
+        else {
+            memcpy(&argv_cpy, arg_i, i * sizeof(char*));
+            argv_cpy[i] = NULL;
+            arg->argv_arg = argv_cpy;
+            incr_arg(arg_i, i + 1);
+        }
     }
     return ret;
 }

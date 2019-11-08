@@ -37,7 +37,6 @@ bool primary_evaluate(primary_t primary, primary_arg *arg,\
         ret = eval_type(entry->fts_statp->st_mode, arg->char_arg);
         break;
     case EXEC:
-        // TODO: This can't be the logic here. Needs way more overhead.
         ret = eval_exec(entry->fts_path, arg->argv_arg);
         break;
     case PRIMARY_NUM:
@@ -105,13 +104,15 @@ bool eval_type(mode_t mode, char t) {
 /**
  * TODO: This is not a cut and dry fucking true or false if shit goes sideways.
  */
+ #include <stdio.h>
 bool eval_exec(char *path, argv_t argv) {
     pid_t pid;
-    int status, ret;
+    int status;
 
     pid = fork();
     if (pid == 0) {
-        execvp(argv[0], &(argv[1]));
+        printf("%s\n", argv[0]);
+        execvp(argv[0], &(argv[0]));
         return -1;
     }
     else if (waitpid(pid, &status, 0) == -1) {
