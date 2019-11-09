@@ -26,6 +26,7 @@ int long_out_parse(struct long_out_s *long_out, struct stat *f_stat, \
             }
             else {
                 parse_mode_str(long_out->mode_str, f_stat->st_mode);
+                long_out->i_node = f_stat->st_ino;
                 long_out->nlink = f_stat->st_nlink;
                 long_out->size = f_stat->st_size;
                 long_out->f_name = f_name;
@@ -65,7 +66,7 @@ int parse_usr_str(char **usr_str, uid_t uid) {
 
     passwd_ent = getpwuid(uid);
     if (passwd_ent == NULL) {
-        sprintf(num_buf, "%d", uid);
+        sprintf(num_buf, UID_PRINTF, uid);
         errno = 0;
         *usr_str = malloc(strlen(num_buf)+1);
         if (*usr_str == NULL && errno) {
@@ -101,7 +102,7 @@ int parse_grp_str(char **grp_str, gid_t gid) {
 
     group_ent = getgrgid(gid);
     if (group_ent == NULL) {
-        sprintf(num_buf, "%ud", gid);
+        sprintf(num_buf, GID_PRINTF, gid);
         errno = 0;
         *grp_str = malloc(strlen(num_buf)+1);
         if (*grp_str == NULL && errno) {
@@ -143,12 +144,17 @@ int parse_mtim_str(char *mtim_str, time_t mtim) {
 }
 
 /**
- * Prints a long format ls entry given long_out.
+ * Prints a long format ls entry given long_out. String concatenation is used
+ *   here to make changing of the system specific formatting values easier.
  */
 void long_out_print(struct long_out_s *long_out) {
-    printf("%s %u %s %s %lld %s %s\n", long_out->mode_str, long_out->nlink,
-        long_out->usr_str, long_out->grp_str, long_out->size,
-        long_out->mtim_str, long_out->f_name);
+    if (option_i) {
+        printf(INO_PRINTF " ", long_out->i_node);
+    }
+    printf("%s " NLINK_PRINTF " %s %s " OFF_PRINTF " %s %s\n",
+        long_out->mode_str, long_out->nlink, long_out->usr_str,
+        long_out->grp_str, long_out->size, long_out->mtim_str,
+        long_out->f_name);
 }
 
 /**

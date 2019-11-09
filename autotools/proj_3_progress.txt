@@ -17,13 +17,14 @@ Build/Live Test...
 ls TODO:
 FEAURES...
     To Start
-        multi-path
-        i-node number
         collumns for terminal
     In Progress
-
     Done
+        multi-path
+        i-node number
+        d option
 
+// DON'T DO UNTIL ALL FEATURES FINISHED
 Refactor...
     To Start
         long_out

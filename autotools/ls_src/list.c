@@ -1,7 +1,8 @@
 /**
- * Implementation of an increasing-order linked list for holding file names 
- *   and stat information. The increasing-order property is ensured by creating
- *   nodes through list_create_node and adding them with list_insert_ordered.
+ * Implementation of an increasing-order linked list that holds a file names as
+ *   well as an optional stat struct. The increasing-order property is ensured
+ *   by creating nodes through list_create_node and adding them with
+ *   list_insert_ordered.
  */
 #include "list.h"
 
@@ -13,7 +14,7 @@
  */
 node* list_create_node(char *f_name, struct stat *f_stat) {
     node *n;
-    list_err ret = LIST_ERR_NONE; 
+    list_err ret = LIST_ERR_NONE;
 
     errno = 0;
     n = malloc(sizeof(node));

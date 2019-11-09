@@ -2,25 +2,29 @@
  * The ls program. Lists files in the current working directory. Options modify
  *   the output.
  */
-
 #include <dirent.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <limits.h>
 #include "list.h"
 #include "long_out.h"
+#include "ls_defs.h"
 
 // All valid options for ls
-#define OPTION_STRING "al"
+#define OPTION_STRING "adil"
 
-// Option flags
+// Option flags. These are ONLY set by the get_options function.
+
 // Show files begining with .
 bool option_a = false;
 // Output files in long-format
 bool option_l = false;
+// Output i-node number
+bool option_i = false;
+// Output just the file specified
+bool option_d = false;
 
 // Error definitions
-// Values are included for clarity
 typedef enum ls_err ls_err;
 enum ls_err {
     LS_ERR_NONE = 0,
@@ -37,10 +41,7 @@ ls_err ls(char *path);
 
 // Gets all the entries located in path and stores them in dir_entries.
 ls_err get_entries(const char *path, list *dir_entries);
-
-// Parses ent at path. The value is stored in dir_entries.
-ls_err parse_entry(struct dirent *ent, const char *path, \
-        list *dir_entries);
+ls_err add_entry(char *f_name, const char *path, list *dir_entries);
 
 // Gets a file's full path from f_name and the path of the directory that 
 //   contains it, storing it in path_buf.
@@ -61,7 +62,9 @@ void ls_perror(ls_err err, char *pname);
 
 /** 
  * Entry point for ls. Ensures arguments are defined and then calls ls
- *   functionality on the CWD. If an error occurs, its message is then printed.
+ *   functionality for all specified file paths. On an error, will attempt to
+ *   continue running through the rest of the paths unless an apparent memory
+ *   allocation has occured.
  * Returns 0 on success, >0 on error
  */
 int main(int argc, char **argv) {
@@ -73,10 +76,32 @@ int main(int argc, char **argv) {
         printf("Usage: %s [-%s]\n", argv[0], OPTION_STRING);
     }
     else {
-        err = ls(".");
-        if (err != LS_ERR_NONE) {
-            ls_perror(err, argv[0]);
-            ret = err;
+        int i = 1;
+        while (argv[i] != NULL && argv[i][0] == '-') {
+            i++;
+        }
+        if (argv[i] == NULL) {
+            err = ls(".");
+            if (err != LS_ERR_NONE) {
+                ls_perror(err, argv[0]);
+                ret = err;
+            }
+        }
+        else {
+            int j = i;
+            while (argv[j] != NULL && argv[j][0] != '-' \
+                    && err != LS_ERR_MALLOC) {
+                if (j > i) {
+                    printf("\n");
+                }
+                printf("%s:\n", argv[j]);
+                err = ls(argv[j]);
+                if (err != LS_ERR_NONE) {
+                    ls_perror(err, argv[0]);
+                    ret = err;
+                }
+                j++;
+            }
         }
     }
 
@@ -92,7 +117,12 @@ ls_err ls(char *path) {
     list dir_entries = NULL;
     ls_err ret = LS_ERR_NONE;
 
-    ret = get_entries(path, &dir_entries);
+    if (option_d) {
+        ret = add_entry(path, NULL, &dir_entries);
+    }
+    else {
+        ret = get_entries(path, &dir_entries);
+    }
     if (ret != LS_ERR_NONE) {
         list_delete(&dir_entries);
     }
@@ -109,7 +139,7 @@ ls_err ls(char *path) {
 
 /**
  * Opens and iterates through a directory stream at path, and for each entry
- *   entering it into dir_entries with a call to parse_entry.
+ *   entering it into dir_entries with a call to add_entry.
  * Returns LS_ERR_NONE on success, and any other ls_err otherwise depending
  *   on the type of failure.
  */
@@ -128,7 +158,7 @@ ls_err get_entries(const char *path, list *dir_entries) {
         ent = readdir(d);
         while (ent != NULL && ret == LS_ERR_NONE) {
             if (option_a || ent->d_name[0] != '.') {
-                ret = parse_entry(ent, path, dir_entries);
+                ret = add_entry(ent->d_name, path, dir_entries);
             }
             errno = 0;
             ent = readdir(d);
@@ -137,36 +167,39 @@ ls_err get_entries(const char *path, list *dir_entries) {
             ret = LS_ERR_DIR_STREAM_READ;
         }
     }
-
     closedir(d);
     return ret;
 }
 
 /** 
- * Parses the data in ent and adds a new node with the parsed data into 
- *   dir_entries. If long-format output is on, it will also store the extra
- *   stat information in dir_entries as well.
- * Returns LS_ERR_NONE on success, and any other ls_err otherwise depending
- *   on the type of error.
+ * Adds a new node containing f_name into dir_entries. If option_l or option_i
+ *   are true, it also stores the file's stat struct in dir_entries as well.
+ *   If path is NULL, stat is just given f_name. Otherwise f_name is appended to
+ *   path.
+ * Returns LS_ERR_NONE on success, and any other value of ls_err if an error
+ *   occured.
  */
-ls_err parse_entry(struct dirent *ent, const char *path, \
-        list *dir_entries) {
+ls_err add_entry(char *f_name, const char *path, list *dir_entries) {
     node *ent_node = NULL;
-
     struct stat *ent_stat = NULL;
     char stat_path[PATH_MAX];
-
     ls_err ret = LS_ERR_NONE;
 
-    if (option_l) {
-        ret = get_full_path(stat_path, PATH_MAX, ent->d_name, path);
+    if (option_l || option_i) {
         if (ret == LS_ERR_NONE) {
             errno = 0;
             ent_stat = malloc(sizeof(struct stat));
             if (ent_stat == NULL) {
                 ret = LS_ERR_MALLOC;
             }
-            else if (lstat(stat_path, ent_stat) < 0) {
+            else if (path != NULL) {
+                ret = get_full_path(stat_path, PATH_MAX, f_name, path);
+                if (ret == LS_ERR_NONE && lstat(stat_path, ent_stat) < 0) {
+                    free(ent_stat);
+                    ret = LS_ERR_STAT;
+                }
+            }
+            else if (lstat(f_name, ent_stat) < 0) {
                 free(ent_stat);
                 ret = LS_ERR_STAT;
             }
@@ -174,7 +207,7 @@ ls_err parse_entry(struct dirent *ent, const char *path, \
     }
 
     if (ret == LS_ERR_NONE) {    
-        ent_node = list_create_node(ent->d_name, ent_stat);
+        ent_node = list_create_node(f_name, ent_stat);
         if (ent_node == NULL) {
             ret = LS_ERR_MALLOC;
         }
@@ -195,7 +228,7 @@ ls_err get_full_path(char *path_buf, int path_buf_len, const char *f_name, \
         const char *path) {
     ls_err ret = LS_ERR_NONE;
 
-    if (strlen(path) + strlen(f_name) + 1 > path_buf_len) {
+    if (strlen(path) + strlen(f_name) + 2 > path_buf_len) {
         ret = LS_ERR_PATH_OVERFLOW;
     }
     else {
@@ -217,6 +250,9 @@ void output_entries(list *dir_entries) {
     node *curr;
     curr = *dir_entries;
     while (curr != NULL) {
+        if (option_i) {
+            printf(INO_PRINTF" ", curr->data.f_stat->st_ino);
+        }
         printf("%s\n", curr->data.f_name);
         curr = curr->next;
     }
@@ -264,6 +300,12 @@ int get_options(const int argc, char **argv) {
         switch (opt) {
         case 'a':
             option_a = true;
+            break;
+        case 'd':
+            option_d = true;
+            break;
+        case 'i':
+            option_i = true;
             break;
         case 'l':
             option_l = true;

@@ -10,13 +10,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include "ls_defs.h"
 
 // Defines for long_out_s
 #define MODE_STR_LEN 11
 #define DATE_STR_LEN 13
 
-// Stores strings for long-format output
+// Stores relevant values for long-format output
 struct long_out_s {
+    ino_t i_node;
     char mode_str[MODE_STR_LEN];
     nlink_t nlink;
     char *usr_str;
