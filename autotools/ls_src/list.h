@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <assert.h>
 
 typedef struct node_s node;
 typedef node* list;
@@ -35,19 +36,15 @@ node* list_create_node(char *f_name, struct stat *f_stat);
 // Sets the given data in n.
 list_err node_set_data(node *n, char *f_name, struct stat *f_stat);
 
-// Inserts n into l while preserving increasing order of l. Duplicate nodes
-//   will be added, but this the caller will be informed of such by 
-//   LIST_ERR_DUP_ENTRY being returned.
+// Inserts n into l while preserving increasing order of l.
 // If adding the first element of an empty list, that list must be initialized
 //   and point at NULL.
 // If nodes are added to l by any other means than this function, then 
 //   list_insert_ordered has undefined behavior.
 list_err list_insert_ordered(list *l, node *n);
 
-// Deletes l and points it to NULL.
-// All members of l, whether they were copied by l or their reference was
-//   simply held, will be deleted. The user must not be holding any 
-//   references to data internal to this list after it is deleted.
+// Deletes l and points it to NULL. The user must not be holding any references
+//   to data internal to this list after it is deleted.
 void list_delete(list *l);
 
 // Deletes n and all its entries.
@@ -56,8 +53,7 @@ void node_delete(node *n);
 // Determines order between two nodes.
 int node_order(node *n1, node *n2);
 
-// Makes a copy of s with all the alphabetic characters changed to their 
-//   lowercase form.
-char* lower_string_cpy(char *s);
+// Puts a lowercase copy of src into the string pointed at by dest.
+list_err lower_string_cpy(char** dest, char *src);
 
 #endif /* __LIST_H */

@@ -1,62 +1,51 @@
 /**
  * find program. Recursively searches a given file tree, and given an expression
- *   prints all files that make the expression return true.
+ *   prints all files for which the expression evaluates to true.
  */
 #include <stdio.h>
 #include "list.h"
 #include "expression.h"
-typedef enum find_err find_err;
 
+typedef enum find_err find_err;
 enum find_err {
-    FIND_ERR_NONE = 0,
-    FIND_ERR_MALLOC = 1,
-    FIND_ERR_FTREE = 2
+    FIND_ERR_NONE     = 0,
+    FIND_ERR_MALLOC   = 1,
+    FIND_ERR_FTREE    = 2,
+    FIND_ERR_FTS_READ = 3
 };
 
-// Iterates through the file tree originating from file and evaluating paths 
-//   against the expression. Prints all files that the expression evaluated
-//   to true once it's done.
 find_err find(char *file, expression_t *expression);
 
-// Decends the tree, adding to path_list given the evaluation of expression
-//   for each file.
+// Helpers for find
 find_err descend_tree(FTS *file_tree, expression_t *expression, list *path_list);
-
-// Simple output to stdout of the list of paths.
 void output_path_list(list *path_list);
 
-// Simple argument validator/checker.
-int check_args(int argc, char **argv);
-
-// Error output for errors returned from expression_create.
+// Error printing
 void expression_perror(expr_err err, char *pname);
-
-// Error output for find
 void find_perror(find_err err, char *pname);
 
 /**
- * Does basic error checking, creates an expression from the available args,
- *   and then calls find to do the rest. Calls the appropriate *_perror
- *   function if necessary.
- * Returns: 0 on success, 1 on error.
+ * Creates an expression given input from argv, and then calls find to iterrate
+ *   through the file tree and evaluate each file. The file is assumed to be at
+ *   argv[1] and the expression starts at argv[2]
+ * Returns 0 on success, 1 on error.
  */
 int main(int argc, char **argv) {
-    char **expr_argv;
-    int expr_argc;
+    char **expr_argv = NULL;
     expression_t expression;
     expr_err e_err = EXPR_ERR_NONE;
     find_err f_err = FIND_ERR_NONE;
     int ret = 0;
 
-    if (check_args(argc, argv) < 0) {
+    if (argc == 1) {
+        printf("%s: invalid arguments\n", argv[0]);
+        printf("Usage: %s file [expression]\n", argv[0]);
         ret = 1;
     }
-
     else {
         expr_argv = &(argv[2]);
-        expr_argc = argc-2;
 
-        e_err = expression_create(&expression, expr_argc, expr_argv);
+        e_err = expression_create(&expression, expr_argv);
         if (e_err != EXPR_ERR_NONE) {
             expression_perror(e_err, argv[0]);
             ret = 1;
@@ -74,14 +63,14 @@ int main(int argc, char **argv) {
 }
 
 /**
- * Does almost all the work of find. With the expression already parsed this
- *   just needs to create necessary storage and objects for descending the 
- *   tree and output the results once that's done.
- * Returns: FIND_ERR_NONE on success, and FIND_ERR_FTREE or FIND_ERR_MALLOC
- *   otherwise.
+ * Implementation of find. Descends the file tree with its root at file and
+ *   prints out all files in the tree for which expression evaluates to true.
+ *   fts_open takes a NULL-terminated array so the NULL-terminated array
+ *   consisting of file and NULL is necessary.
+ * Returns FIND_ERR_NONE on success and any other find_err on failure.
  */
 find_err find(char *file, expression_t *expression) {
-    FTS *file_tree;
+    FTS *file_tree = NULL;
     list path_list = NULL;
     find_err ret = FIND_ERR_NONE;
     char *files[] = {file, NULL};
@@ -99,23 +88,21 @@ find_err find(char *file, expression_t *expression) {
         fts_close(file_tree);
         list_delete(&path_list);
     }
-    
     return ret;
 }
 
 /**
  * Descends the file tree, evaluating each file with expression and adding
- *   every file that evaluates to true to path_list. Every call to fts_read
- *   gives the struct of the file back which then becomes the input into
- *   expression_evaluate.
- * Returns: FIND_ERR_NONE on success, and FIND_ERR_MALLOC if a node fails to
- *   be allocated.
+ *   every file that evaluates to true to path_list.
+ * Returns FIND_ERR_NONE on success and FIND_ERR_MALLOC or FIND_ERR_FTS_READ if
+ *   malloc or fts_read failed respectively.
  */
 find_err descend_tree(FTS *file_tree, expression_t *expression, list *path_list) {
-    FTSENT *entry;
-    node *n;
+    FTSENT *entry = NULL;
+    node *n = NULL;
     find_err ret = FIND_ERR_NONE;
 
+    errno = 0;
     entry = fts_read(file_tree);
     while (entry != NULL && ret == FIND_ERR_NONE) {
         if (entry->fts_info != FTS_DP && 
@@ -128,8 +115,12 @@ find_err descend_tree(FTS *file_tree, expression_t *expression, list *path_list)
                 list_insert_ordered(path_list, n);
             }
         }
-
+        
+        errno = 0;
         entry = fts_read(file_tree);
+    }
+    if (entry == NULL && errno) {
+        ret = FIND_ERR_FTS_READ;
     }
     return ret;
 }
@@ -146,21 +137,8 @@ void output_path_list(list *path_list) {
 }
 
 /**
- * Does basic argument validity checking and prints any errors.
- * Returns: 0 on success, -1 if arguments are invalid.
- */
-int check_args(int argc, char **argv) {
-    int ret = 0;
-    if (argc == 1) {
-        printf("%s: invalid arguments\n", argv[0]);
-        printf("Usage: %s file [expression]\n", argv[0]);
-        ret = -1;
-    }
-    return ret;
-}
-
-/**
- * Basic error output for expression creation.
+ * Basic error output for expression creation. pname should be argv[0] from
+ *   main.
  */
 void expression_perror(expr_err err, char *pname) {
     switch(err) {
@@ -185,7 +163,7 @@ void expression_perror(expr_err err, char *pname) {
 }
 
 /**
- * Basic error output for find.
+ * Basic error output for find. pname should be argv[0] from main.
  */
 void find_perror(find_err err, char *pname) {
     switch (err) {
@@ -194,6 +172,8 @@ void find_perror(find_err err, char *pname) {
     case FIND_ERR_MALLOC:
         perror(pname);
     case FIND_ERR_FTREE:
+        perror(pname);
+    case FIND_ERR_FTS_READ:
         perror(pname);
     }
 }

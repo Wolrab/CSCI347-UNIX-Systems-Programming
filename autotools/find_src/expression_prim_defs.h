@@ -1,5 +1,3 @@
-//TODO: Short blurb
-
 #ifndef __EXPRESSION_PRIM_DEFS_H
 #define __EXPRESSION_PRIM_DEFS_H
 #include <sys/types.h>
@@ -10,20 +8,21 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <fts.h>
+#include <assert.h>
 
 typedef enum primary primary_t;
 typedef enum arg_type arg_type;
 typedef union primary_arg primary_arg;
-typedef struct primary_args_g primary_args_g;
+typedef struct prog_state prog_state;
 
-typedef char** argv_t;
-
-// For finding the nearest day
+// For rounding time to the nearest day/minute
 #define SEC_PER_DAY 86400
 #define SEC_PER_MIN 60
 
 // For expanding an argument into a path in the EXEC primary
 #define PRIM_EXEC_PATH_EXPAND "{}"
+// Terminating arg in an argument array for the EXEC primary
+#define PRIM_EXEC_ARGV_END ";"
 
 // Primaries
 enum primary {
@@ -37,31 +36,38 @@ enum primary {
     PRIMARY_NUM = 7
 };
 
-// Argument types
+// Argument types taken by primaries. 
 enum arg_type {
-    ARG_LONG = 0,
-    ARG_CHAR = 1,
-    ARG_CTIM = 2,
-    ARG_ARGV = 3
+    LONG_ARG = 0,
+    CHAR_ARG = 1,
+    CTIM_ARG = 2,
+    ARGV_ARG = 3
 };
 
 // Arrays for mapping any primary to its string representation or argument type
-//   respectively. Defined in expression_prim_parse.h
-extern const char *const primary_str[];
-extern const arg_type primary_arg_type[];
+//   respectively.
+extern const char *const primary_str_map[];
+extern const arg_type primary_arg_type_map[];
+
+// A container holding an argv and the number of arguments.
+struct argv_s {
+    char **argv;
+    int argc;
+};
 
 // Holds the arg for any given primary
 union primary_arg {
     long long_arg;
     char char_arg;
     struct timespec *ctim_arg;
-    argv_t argv_arg;
+    struct argv_s *argv_arg;
 };
 
-// Args available to all primaries
-struct primary_args_g {
-    time_t time_day;
-    time_t time_min;
+// Holds values representing the program's state that some primaries take as
+//   arguments
+struct prog_state {
+    time_t start_time_day;
+    time_t start_time_min;
 };
 
 #endif /* __EXPRESSION_PRIM_DEFS_H */

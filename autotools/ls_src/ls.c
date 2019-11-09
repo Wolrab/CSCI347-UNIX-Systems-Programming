@@ -62,7 +62,7 @@ void ls_perror(ls_err err, char *pname);
 /** 
  * Entry point for ls. Ensures arguments are defined and then calls ls
  *   functionality on the CWD. If an error occurs, its message is then printed.
- * Returns: 0 on success, >0 on error
+ * Returns 0 on success, >0 on error
  */
 int main(int argc, char **argv) {
     ls_err err = LS_ERR_NONE;
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
 
 /**
  * Prints the entries of the directory specified by path to stdout.
- * Returns: LS_ERR_NONE on success, and on error an ls_err value corresponding
+ * Returns LS_ERR_NONE on success, and on error an ls_err value corresponding
  *   to the type of error.
  */
 ls_err ls(char *path) {
@@ -110,7 +110,7 @@ ls_err ls(char *path) {
 /**
  * Opens and iterates through a directory stream at path, and for each entry
  *   entering it into dir_entries with a call to parse_entry.
- * Returns: LS_ERR_NONE on success, and any other ls_err otherwise depending
+ * Returns LS_ERR_NONE on success, and any other ls_err otherwise depending
  *   on the type of failure.
  */
 ls_err get_entries(const char *path, list *dir_entries) {
@@ -146,7 +146,7 @@ ls_err get_entries(const char *path, list *dir_entries) {
  * Parses the data in ent and adds a new node with the parsed data into 
  *   dir_entries. If long-format output is on, it will also store the extra
  *   stat information in dir_entries as well.
- * Returns: LS_ERR_NONE on success, and any other ls_err otherwise depending
+ * Returns LS_ERR_NONE on success, and any other ls_err otherwise depending
  *   on the type of error.
  */
 ls_err parse_entry(struct dirent *ent, const char *path, \
@@ -188,7 +188,7 @@ ls_err parse_entry(struct dirent *ent, const char *path, \
 /** 
  * Gets the full path of f_name given path and a buffer to store the 
  *   new path.
- * Returns: LS_ERR_NONE on success and LS_ERR_PATH_OVERFLOW if the concatenated
+ * Returns LS_ERR_NONE on success and LS_ERR_PATH_OVERFLOW if the concatenated
  *   path would overflow path_buf.
  */
 ls_err get_full_path(char *path_buf, int path_buf_len, const char *f_name, \
@@ -225,7 +225,7 @@ void output_entries(list *dir_entries) {
 /**
  * Outputs the filenames and stat information in dir_entries to stdout. asserts
  *   that each entry has a non-null f_stat field.
- * Returns: LS_ERR_NONE on success, and LS_ERR_LONG_PARSE if the long-format
+ * Returns LS_ERR_NONE on success, and LS_ERR_LONG_PARSE if the long-format
  *   output could not be parsed.
  */
 ls_err output_entries_long(list *dir_entries) {
@@ -253,7 +253,7 @@ ls_err output_entries_long(list *dir_entries) {
 
 /**
  * Checks argv for options and sets option flags.
- * Returns: 0 on success, -1 if an invalid option was found.
+ * Returns 0 on success, -1 if an invalid option was found.
  */
 int get_options(const int argc, char **argv) {
     char opt = -1;

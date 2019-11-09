@@ -5,7 +5,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "expression_prim.h"
+#include "expression_prim_eval.h"
 #include "expression_prim_parse.h"
 
 typedef struct primary_node primary_node;
@@ -20,9 +20,9 @@ struct primary_node {
     primary_node *next;
 };
 
-// expression struct which includes global primary agruments
+// expression struct which includes state information about the program.
 struct expression {
-    primary_args_g global_args;
+    prog_state state_args;
     primary_node *head;
 };
 
@@ -38,8 +38,7 @@ enum expr_err {
 
 // Creates an expression. expression is expected to be already allocated.
 //   expr_argv must be null-terminated.
-expr_err expression_create(expression_t *expression, int expr_argc, \
-    char **expr_argv);
+expr_err expression_create(expression_t *expression, char **expr_argv);
 
 // Creates a primary node. Allocation of primary_node is done here, so node must
 //   point to valid memory. primary_arg_i is moved to the next index after most
@@ -47,12 +46,12 @@ expr_err expression_create(expression_t *expression, int expr_argc, \
 expr_err expression_create_primary(primary_node **node, char *primary_str, \
     char ***primary_arg_i);
 
-// Adds a primary node to expression.
+// Adds a primary node to the expression.
 void expression_add_primary(expression_t *expression, primary_node *node);
 
-// Evaluates the given expression against entry.
+// Evaluates the expression against entry.
 bool expression_evaluate(expression_t *expression, FTSENT *entry);
 
-// Deletes expression.
+// Deletes the expression.
 void expression_delete(expression_t *expression);
 #endif /* __EXPRESSION_H */

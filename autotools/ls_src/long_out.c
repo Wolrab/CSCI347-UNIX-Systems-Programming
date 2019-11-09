@@ -7,7 +7,7 @@
 
 /**
  * Fills long_out using the fields given in data.
- * Returns: 0 on success, -1 if the parsing failed.
+ * Returns 0 on success, -1 if the parsing failed.
  */
 int long_out_parse(struct long_out_s *long_out, struct stat *f_stat, \
         char *f_name) {
@@ -56,7 +56,7 @@ void parse_mode_str(char *mode_s, mode_t mode) {
 /**
  * Allocates and sets the value pointed at by usr_str to be the user name 
  *   of uid.
- * Returns: 0 on success, -1 if the parsing failed.
+ * Returns 0 on success, -1 if the parsing failed.
  */
 int parse_usr_str(char **usr_str, uid_t uid) {
     struct passwd *passwd_ent;
@@ -72,7 +72,7 @@ int parse_usr_str(char **usr_str, uid_t uid) {
             ret = -1;
         }
         else {
-            memcpy(*usr_str, num_buf, strlen(num_buf)+1);
+            strncpy(*usr_str, num_buf, strlen(num_buf)+1);
         }
     }
     else {
@@ -82,7 +82,7 @@ int parse_usr_str(char **usr_str, uid_t uid) {
             ret = -1;
         }
         else {
-            memcpy(*usr_str, passwd_ent->pw_name, \
+            strncpy(*usr_str, passwd_ent->pw_name, \
                 strlen(passwd_ent->pw_name) + 1);
         }
     }
@@ -92,7 +92,7 @@ int parse_usr_str(char **usr_str, uid_t uid) {
 /**
  * Allocates and sets the value pointed at by grp_str to be the group name 
  *   of gid.
- * Returns: 0 on success, -1 if the parsing failed.
+ * Returns 0 on success, -1 if the parsing failed.
  */
 int parse_grp_str(char **grp_str, gid_t gid) {
     struct group *group_ent;
@@ -108,7 +108,7 @@ int parse_grp_str(char **grp_str, gid_t gid) {
             ret = -1;
         }
         else {
-            memcpy(*grp_str, num_buf, strlen(num_buf)+1);
+            strncpy(*grp_str, num_buf, strlen(num_buf)+1);
         }
     }
     else {
@@ -118,7 +118,7 @@ int parse_grp_str(char **grp_str, gid_t gid) {
             ret = -1;
         }
         else {
-            memcpy(*grp_str, group_ent->gr_name, \
+            strncpy(*grp_str, group_ent->gr_name, \
                 strlen(group_ent->gr_name) + 1);
         }
     }
@@ -127,7 +127,7 @@ int parse_grp_str(char **grp_str, gid_t gid) {
 
 /** 
  * Gets the formatted date from mtim.
- * Returns: 0 on success, -1 if the parsing failed.
+ * Returns 0 on success, -1 if the parsing failed.
  */
 int parse_mtim_str(char *mtim_str, time_t mtim) {
     struct tm *t;

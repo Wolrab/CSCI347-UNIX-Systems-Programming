@@ -1,0 +1,44 @@
+Proj 3 TODO
+
+find TODO:
+Refactor...
+    Done (pass 1)
+
+Documentation...
+    Done (pass 1)
+
+Basic build/basic testing...
+    Done
+
+Test Cases...
+
+Build/Live Test...
+
+ls TODO:
+FEAURES...
+    To Start
+        multi-path
+        i-node number
+        collumns for terminal
+    In Progress
+
+    Done
+
+Refactor...
+    To Start
+        long_out
+        ls
+    In Progress
+
+    Done
+        list
+
+
+Documentation...
+    To Start
+        long_out
+        ls
+    In Progress
+
+    Done
+        list

@@ -1,26 +1,31 @@
 /**
- * TODO:
+ * Interface for parsing primaries and their arguments. primary_parse converts
+ *   a given user string into its equivalent primary_t value, which is then used
+ *   for all subsequent primary parsing and evaluating. get_prog_state is also
+ *   included here as its implementation is related to the types of primaries
+ *   and their arguments.
  */
 #include "expression_prim_parse.h"
 
-// Global definitions of mappings for primary_t enums to their corresponding
-//   string representations and arg types
-const char *const primary_str[] = {"-cnewer", "-cmin", "-ctime", "-mmin", \
+// Arrays representing mappings from primary_t enums to their string
+//   representations and arg types respectively.
+const char *const primary_str_map[] = {"-cnewer", "-cmin", "-ctime", "-mmin", \
     "-mtime", "-type", "-exec"};
-const arg_type primary_arg_type[] = {ARG_CTIM, ARG_LONG, ARG_LONG, ARG_LONG, \
-    ARG_LONG, ARG_CHAR, ARG_ARGV};
+const arg_type primary_arg_type_map[] = {CTIM_ARG, LONG_ARG, LONG_ARG, LONG_ARG, \
+    LONG_ARG, CHAR_ARG, ARGV_ARG};
 
 /**
- * Parses arg_s and puts the corresponding primary_t into primary. Since
- *   primary_t is an enum, the primary we are looking for is the index
- *   where primary_str matches str.
- * Returns: 0 on success, and -1 if arg_s does not correspond to a primary.
+ * Parses primary_str_map and puts the corresponding primary_t into primary.
+ *   Since primary_t is an enum, the primary we are looking for is the index
+ *   where primary_str_map matches primary_str.
+ * Returns 0 on success, and -1 if primary_str does not correspond to a
+ *   primary.
  */
-int primary_parse(primary_t *primary, char *arg_s) {
+int primary_parse(primary_t *primary, char *primary_str) {
     unsigned int prim = 0;
     int ret = 0;
-    while (prim < PRIMARY_NUM && \
-            strncmp(arg_s, primary_str[prim], strlen(primary_str[prim])) != 0) {
+    while (prim < PRIMARY_NUM && strncmp(primary_str, primary_str_map[prim], \
+            strlen(primary_str_map[prim])) != 0) {
         prim++;
     }
     if (prim == PRIMARY_NUM) {
@@ -33,26 +38,27 @@ int primary_parse(primary_t *primary, char *arg_s) {
 }
 
 /**
- * Starting at arg_i, parses an argument array until either a valid argument for
- *   primary is found or an error occurs.
- * Parsing and moving arg_i is left to helper functions. This function manages
- *   the returns and errors if necessary.
- * Returns: 0 on success, -1 if the arg could not be parsed.
+ * Starting at argv_i, parses an argument array until either a valid argument
+ *   for primary is found or an error occurs. On success, argv_i points to the
+ *   value immediately after the last consumed argument.
+ * Parsing and moving argv_i is left to the appropriate get_arg_* function. This
+ *   function simply manages the returns and errors if necessary.
+ * Returns 0 on success, -1 if the arg could not be parsed or doesn't exist.
  */
-int primary_arg_parse(primary_t primary, primary_arg *arg, argv_t *arg_i) {
+int primary_arg_parse(primary_t primary, primary_arg *arg, char ***argv_i) {
     int ret = 0;
-    switch(primary_arg_type[primary]) {
-    case ARG_LONG:
-        ret = get_arg_long(arg, arg_i);
+    switch(primary_arg_type_map[primary]) {
+    case LONG_ARG:
+        ret = get_arg_long(arg, argv_i);
         break;
-    case ARG_CHAR:
-        ret = get_arg_char(arg, arg_i);
+    case CHAR_ARG:
+        ret = get_arg_char(arg, argv_i);
         break;
-    case ARG_CTIM:
-        ret = get_arg_ctim(arg, arg_i);
+    case CTIM_ARG:
+        ret = get_arg_ctim(arg, argv_i);
         break;
-    case ARG_ARGV:
-        ret = get_arg_argv(arg, arg_i);
+    case ARGV_ARG:
+        ret = get_arg_argv(arg, argv_i);
         break;
     default:
         ret = -1;
@@ -61,39 +67,39 @@ int primary_arg_parse(primary_t primary, primary_arg *arg, argv_t *arg_i) {
 }
 
 /**
- * Expected arg: A string representing a long integer
+ * Expected argv value: A string representing a long integer
  * Consumes: 1 arg
- * Returns: 0 on success or -1 on error
+ * Returns 0 on success or -1 on error
  */
-int get_arg_long(primary_arg *arg, argv_t *arg_i) {
-    arg->long_arg = strtol((*arg_i)[0], NULL, 10);
-    incr_arg(arg_i, 1);
+int get_arg_long(primary_arg *arg, char ***argv_i) {
+    arg->long_arg = strtol((*argv_i)[0], NULL, 10);
+    incr_argv_i(argv_i, 1);
     return 0;
 }
 
 /**
- * Expected arg: A single character
+ * Expected argv value: A single character
  * Consumes: 1 arg
- * Returns: 0 on success or -1 on error
+ * Returns 0 on success or -1 on error
  */
-int get_arg_char(primary_arg *arg, argv_t *arg_i) {
+int get_arg_char(primary_arg *arg, char ***argv_i) {
     int ret = 0;
-    if (strlen((*arg_i)[0]) != 1) {
+    if (strlen((*argv_i)[0]) != 1) {
         ret = -1;
     }
     else {
-        arg->char_arg = (*arg_i)[0][0];
-        incr_arg(arg_i, 1);
+        arg->char_arg = (*argv_i)[0][0];
+        incr_argv_i(argv_i, 1);
     }
     return ret;
 }
 
 /**
- * Expected arg: A path to a file
+ * Expected argv value: A path to a file
  * Consumes: 1 arg
- * Returns: 0 on success or -1 on error
+ * Returns 0 on success or -1 on error
  */
-int get_arg_ctim(primary_arg *arg, argv_t *arg_i) {
+int get_arg_ctim(primary_arg *arg, char ***argv_i) {
     struct stat f_stat;
     struct timespec *ctim;
     int ret = 0;
@@ -103,85 +109,117 @@ int get_arg_ctim(primary_arg *arg, argv_t *arg_i) {
     if (ctim == NULL) {
         ret = -1;
     }
-    else if (stat((*arg_i)[0], &f_stat) < 0) {
+    else if (stat((*argv_i)[0], &f_stat) < 0) {
         free(ctim);
         ret = -1;
     }
     else {
         memcpy(ctim, &(f_stat.st_ctim), sizeof(struct timespec));
         arg->ctim_arg = ctim;
-        incr_arg(arg_i, 1);
+        incr_argv_i(argv_i, 1);
     }
     return ret;
 }
 
 /**
- * Expected args: An array of args to execute a program terminated by
- *   PRIM_EXEC_ARGS_END.
+ * Expected argv values: An array of args to execute a program terminated by
+ *   PRIM_EXEC_ARGV_END.
  * Consumes: >=2 args, minimum number being the program followed by
- *   PRIM_EXEC_ARGS_END.
- * Returns: 0 on success or -1 if the args are not terminated with
- *   PRIM_EXEC_ARGS_END.
+ *   PRIM_EXEC_ARGV_END.
+ * Returns 0 on success, -1 if an error occured or if the args are not
+ *   terminated with PRIM_EXEC_ARGV_END.
  */
-#include <stdio.h>
-int get_arg_argv(primary_arg *arg, argv_t *arg_i) {
-    int ret = 0, i = 0;
-    argv_t argv_cpy;
+int get_arg_argv(primary_arg *arg, char ***argv_i) {
+    int ret = 0;
+    struct argv_s *argv;
 
-    while ((*arg_i)[i] != NULL && strncmp(PRIM_EXEC_ARGS_END, (*arg_i)[i], \
-            strlen((*arg_i)[i]) + 1)) {
-        i++;
-    }
-
-    if ((*arg_i)[i] == NULL) {
+    errno = 0;
+    argv = malloc(sizeof(struct argv_s));
+    if (argv == NULL) {
         ret = -1;
     }
     else {
-        errno = 0;
-        argv_cpy = malloc(sizeof(char*) * (i + 1));
-        if (argv_cpy == NULL) {
+        int i = 0;
+        while ((*argv_i)[i] != NULL && strncmp(PRIM_EXEC_ARGV_END, \
+                (*argv_i)[i], strlen(PRIM_EXEC_ARGV_END) + 1)) {
+            i++;
+        }
+
+        if ((*argv_i)[i] == NULL) {
+            free(argv);
             ret = -1;
         }
         else {
-            memcpy(&argv_cpy, arg_i, i * sizeof(char*));
-            argv_cpy[i] = NULL;
-            arg->argv_arg = argv_cpy;
-            incr_arg(arg_i, i + 1);
+            argv->argc = i;
+
+            errno = 0;
+            argv->argv = malloc(sizeof(char*) * (i + 1));
+            if (argv->argv == NULL) {
+                free(argv);
+                ret = -1;
+            }
+            else {
+                memcpy(argv->argv, *argv_i, i * sizeof(char*));
+                argv->argv[i] = NULL;
+                arg->argv_arg = argv;
+                incr_argv_i(argv_i, i + 1);
+            }
         }
     }
     return ret;
 }
 
-void incr_arg(argv_t *arg_i, int i) {
-    *arg_i = (*arg_i) + i;
+/**
+ * Increments the value pointed at by argv_i by i
+ */
+void incr_argv_i(char ***argv_i, int i) {
+    *argv_i = (*argv_i) + i;
 }
 
 /**
- * Fills out global_args with necessary program and state information.
+ * Deletes arg given the primary it corresponds to. The specific implementation
+ *   of each get_arg_* function determines the behavior of this function.
+ */
+void primary_delete_arg(primary_t primary, primary_arg *arg) {
+    switch(primary_arg_type_map[primary]) {
+    case LONG_ARG:
+        break;
+    case CHAR_ARG:
+        break;
+    case CTIM_ARG:
+        free(arg->ctim_arg);
+        break;
+    case ARGV_ARG:
+        free(arg->argv_arg->argv);
+        free(arg->argv_arg);
+        break;
+    }
+}
+
+/**
+ * Fills out state_args with information from the program's state.
  * Currently the only values in use are the number of minutes since the epoch
  *   and the number of days since the epoch, rounded up. The resolution of this
- *   calculation is only in seconds, there is no need to go into the
- *   nanoseconds.
- * Also, the name is misleading. The args are global in the sense that their
- *   values are the same between different primaries, and all primaries have
- *   access to them if needed.
- * Returns: 0 on success, and -1 on error.
+ *   calculation is only in seconds, nanosecond resolution would be very
+ *   overkill given the specific use of these values.
+ * Returns 0 on success, and -1 on error.
  */
-int get_primary_globals(primary_args_g *global_args) {
+int get_prog_state(prog_state *state_args) {
+    int ret = 0;
     struct timespec tm;
-    if(clock_gettime(CLOCK_REALTIME, &tm) < 0) {
-        return -1;
+    if (clock_gettime(CLOCK_REALTIME, &tm) < 0) {
+        ret = -1;
     }
+    else {
+        state_args->start_time_day = tm.tv_sec / SEC_PER_DAY;
+        if (tm.tv_sec % SEC_PER_DAY > 0) {
+            state_args->start_time_day++;
+        }
 
-    global_args->time_day = tm.tv_sec / SEC_PER_DAY;
-    if (tm.tv_sec % SEC_PER_DAY > 0) {
-        global_args->time_day++;
+        state_args->start_time_min = tm.tv_sec / SEC_PER_MIN;
+        if (tm.tv_sec % SEC_PER_MIN > 0) {
+            state_args->start_time_min++;
+        }
     }
-    
-    global_args->time_min = tm.tv_sec / SEC_PER_MIN;
-    if (tm.tv_sec % SEC_PER_MIN > 0) {
-        global_args->time_min++;
-    }
-
-    return 0;
+    return ret;
 }
