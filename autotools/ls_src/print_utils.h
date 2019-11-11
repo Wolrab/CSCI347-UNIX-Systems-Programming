@@ -5,7 +5,7 @@
 #include <assert.h>
 
 // Type formatting defines
-#define INO_PRINTF "%lu"
+#define INO_PRINTF "%llu"
 #define NLINK_PRINTF "%d"
 #define OFF_PRINTF "%lld"
 #define UID_PRINTF "%d"

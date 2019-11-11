@@ -3,7 +3,7 @@ then
   alias ls=.ls
 fi
 
-if CC=clang
+if [ CC=clang ]
 then
   CFLAGS=-O2
 fi
