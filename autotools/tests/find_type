@@ -1,24 +1,27 @@
 #!/usr/bin/env sh
-#
+# Ensures that -type works with the basic file types.
 
 TEMP=$(mktemp -d)
 WORK=$(pwd)
 
 mkdir ${TEMP}/A
 touch ${TEMP}/B
-mkdir ${TEMP}/A/C
-touch ${TEMP}/A/D
+ln -s ${TEMP}/A C
 
 cd ${TEMP}
 ${WORK}/find . -type d > B
+echo >> B
 ${WORK}/find . -type f >> B
+echo >> B
+${WORK}/find . -type l >> B
 
 cat <<EOF | diff B -
 .
 ./A
-./A/C
-./A/D
+
 ./B
+
+./C
 EOF
 status=$?
 

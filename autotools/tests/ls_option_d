@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# Checks for basic behavior of -d
+
+TEMP=$(mktemp -d)
+WORK=$(pwd)
+
+touch ${TEMP}/A
+
+./ls ${TEMP} > ${TEMP}/A
+echo >> ${TEMP}/A
+./ls ${TEMP} -d >> ${TEMP}/A
+
+cat <<EOF | diff ${TEMP}/A -
+A
+
+${TEMP}
+EOF
+status=$?
+
+rm -rf ${TEMP}
+
+exit ${status}

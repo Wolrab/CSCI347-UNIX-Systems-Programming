@@ -1,0 +1,46 @@
+#!/usr/bin/env sh
+# Checks that each line printed by -l is the same size regardless of different
+#   values. Does this by making B ten bytes long and A zero bytes long.
+
+TEMP=$(mktemp -d)
+WORK=$(pwd)
+cd ${TEMP}
+
+touch A
+touch B
+cat <<EOF > B
+ten bytes
+EOF
+
+${WORK}/ls -l > A
+touch C
+grep "^.*A$" A > C
+status=$?
+if [ ${status} ]
+then
+  cd ${WORK}
+  rm -rf ${TEMP}
+  exit ${status}
+fi
+
+touch D
+grep "^.*B$" A > D
+status=$?
+if [ ${status} ]
+then
+  cd ${WORK}
+  rm -rf ${TEMP}
+  exit ${status}
+fi
+
+touch E
+touch F
+wc -m C | E
+wc -m D | F
+
+diff E F
+status=$?
+
+cd ${WORK}
+rm -rf ${TEMP}
+exit ${status}

@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# Uses the stat command to check that i-nodes are printed correctly
+
+TEMP=$(mktemp -d)
+WORK=$(pwd)
+
+cd ${TEMP}
+
+touch A
+touch B
+
+${WORK}/ls -i > A
+stat --printf=%i\ %n\\n A > B
+stat --printf=%i\ %n\\n B >> B
+
+diff A B
+status=$?
+
+cd ${WORK}
+rm -rf ${TEMP}
+
+exit ${status}

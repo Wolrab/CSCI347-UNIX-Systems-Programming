@@ -112,7 +112,9 @@ int main(int argc, char **argv) {
                 if (j > i) {
                     printf("\n");
                 }
-                printf("%s:\n", argv[j]);
+                if (!option_d) {
+                    printf("%s:\n", argv[j]);
+                }
                 err = ls(argv[j]);
                 if (err != LS_ERR_NONE) {
                     ls_perror(err, argv[0]);

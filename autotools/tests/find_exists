@@ -1,14 +1,21 @@
 #!/usr/bin/env sh
-#
+# Ensures the executable for find exists and has the most basic functionality
 
 TEMP=$(mktemp -d)
 WORK=$(pwd)
 
 touch ${TEMP}/A
 
-
 cd ${TEMP}
-${WORK}/find . | grep -q './A'
+${WORK}/find . | grep -q '^.$'
+status=$?
+if [ ${status} ]
+then
+  rm -rf ${TEMP}
+  exit ${status}
+fi
+
+${WORK}/find . | grep -q '^./A$'
 status=$?
 
 cd ${WORK}
