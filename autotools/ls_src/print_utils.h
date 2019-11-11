@@ -11,6 +11,8 @@
 #define UID_PRINTF "%d"
 #define GID_PRINTF "%d"
 
+// Gets the maximum amount of characters needed to represent the given format
+//   string.
 int get_f_max_strlen(char *format);
 
 #endif /* __PRINT_UTILS_H */

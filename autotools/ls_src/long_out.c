@@ -56,7 +56,8 @@ void parse_mode_str(char *mode_s, mode_t mode) {
 
 /**
  * Allocates and sets the value pointed at by usr_str to be the user name 
- *   of uid.
+ *   of uid. If uid has no corresponding username, the string representation of
+ *   uid is stored instead.
  * Returns 0 on success, -1 if the parsing failed.
  */
 int parse_usr_str(char **usr_str, uid_t uid) {
@@ -101,7 +102,8 @@ int parse_usr_str(char **usr_str, uid_t uid) {
 
 /**
  * Allocates and sets the value pointed at by grp_str to be the group name 
- *   of gid.
+ *   of gid. If gid has no corresponding group name, the string representation 
+ *   of gid is stored instead.
  * Returns 0 on success, -1 if the parsing failed.
  */
 int parse_grp_str(char **grp_str, gid_t gid) {
@@ -163,7 +165,8 @@ int parse_mtim_str(char *mtim_str, time_t mtim) {
 
 /**
  * Prints a long format ls entry given long_out. String concatenation is used
- *   here to make changing of the system specific formatting values easier.
+ *   here to make changing of the system specific formatting values easier. If
+ *   option_i is true, the i-node value is printed as well.
  */
 void long_out_print(struct long_out_s *long_out, bool option_i) {
     if (option_i) {

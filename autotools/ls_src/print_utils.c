@@ -1,5 +1,20 @@
+/**
+ * An interface to map various system types to their hard-coded, system-specific
+ *   format strings, and then get the maximum number of characters that a value
+ *   of that format type could take up. Makes magic numbers much less magic.
+ */
 #include "print_utils.h"
 
+/**
+ * Gets the maximum number of characters that the given format string could take
+ *   up when processed. This is only defined for decimal types that this program
+ *   processes in a stat struct plus a couple others.
+ * The asserts are included to make this job much easier, as these values are
+ *   universal, but if one of these does not hold the program will fail and
+ *   display which assertion was broken.
+ * Returns the number of characters on success, and -1 if the format string is
+ *   unknown by this function.
+ */
 int get_f_max_strlen(char *format) {
     assert(INT_MAX == 2147483647);
     assert(UINT_MAX == 4294967295);

@@ -34,7 +34,7 @@ struct long_out_s {
 int long_out_parse(struct long_out_s *long_out, struct stat *f_stat, \
     char *f_name);
 
-// Helper function for parse_stat
+// Helper functions for parse_stat
 // Fills mode_str with a fixed-size character representation of mode.
 void parse_mode_str(char *mode_str, mode_t mode);
 

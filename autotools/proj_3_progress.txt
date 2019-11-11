@@ -1,45 +1,20 @@
 Proj 3 TODO
 
 find TODO:
-Refactor...
-    Done (pass 1)
+    Refactor: Done (pass 1)
+    Documentation: Done (pass 1)
+    Basic build/basic testing: Done
 
-Documentation...
-    Done (pass 1)
+ls TODO:
+    Refactor: Done (sleep deprived)
+    Documentation: Done (sleep deprived)
+    Basic build/basic testing: Done
 
-Basic build/basic testing...
-    Done
 
 Test Cases...
 
 Build/Live Test...
 
-ls TODO:
-FEAURES...
-    To Start
-        collumns for terminal
-    In Progress
-    Done
-        multi-path
-        i-node number
-        d option
 
-// DON'T DO UNTIL ALL FEATURES FINISHED
-Refactor...
-    To Start
-        long_out
-        ls
-    In Progress
-
-    Done
-        list
-
-
-Documentation...
-    To Start
-        long_out
-        ls
-    In Progress
-
-    Done
-        list
+BEFORE SUBMIT
+CTRL+SHIFT+F "TODO:"

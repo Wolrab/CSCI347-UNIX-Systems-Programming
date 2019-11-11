@@ -7,20 +7,28 @@
 #include "list.h"
 
 /**
+ * Initializes the values of list l. l must already be allocated, and 
+ *   initialization mustbe done to ensure size is actually the number of nodes
+ *   in l.
+ */
+void list_init(list *l) {
+    l->size = 0;
+    l->head = NULL;
+}
+
+/**
  * Creates a node with the given data. f_name is copied into two strings, one
  *   being an all-lowercase variant for sorting. The user is expected to ensure
  *   the reference to f_stat is valid for the entire lifetime of the list.
- * Returns The new node on success, NULL otherwise.
+ * Returns The new node on success, NULL if memory allocation failed.
  */
 node* list_create_node(char *f_name, struct stat *f_stat) {
     node *n;
-    list_err ret = LIST_ERR_NONE;
 
     errno = 0;
     n = malloc(sizeof(node));
     if (n != NULL) {
-        ret = node_set_data(n, f_name, f_stat);
-        if (ret == LIST_ERR_MALLOC) {
+        if (node_set_data(n, f_name, f_stat) < 0) {
             free(n);
             n = NULL;
         }
@@ -30,22 +38,22 @@ node* list_create_node(char *f_name, struct stat *f_stat) {
 
 /**
  * Fills n's data field, handling allocation and copying of f_name into
- *   data.f_name and data.f_name_lower. f_stat is directly stored.
- * Returns LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails.
+ *   data.f_name and data.f_name_lower. f_stat is stored directly.
+ * Returns 0 on success, -1 if memory allocation failed.
  */
-list_err node_set_data(node *n, char *f_name, struct stat *f_stat) {
-    list_err ret = LIST_ERR_NONE;
+int node_set_data(node *n, char *f_name, struct stat *f_stat) {
+    int ret = 0;
 
     errno = 0;
     n->data.f_name = malloc(strlen(f_name) + 1);
     if (n->data.f_name == NULL && errno) {
-        ret = LIST_ERR_MALLOC;
+        ret = -1;
     }
     else {
         strncpy(n->data.f_name, f_name, strlen(f_name) + 1);
 
         ret = lower_string_cpy(&(n->data.f_name_lower), f_name);
-        if (ret == LIST_ERR_MALLOC) {
+        if (ret < 0) {
             free(n->data.f_name);
         }
         else {
@@ -57,56 +65,49 @@ list_err node_set_data(node *n, char *f_name, struct stat *f_stat) {
 }
 
 /**
- * Adds n to the list that maintains the increasing order invariant of the list.
- * If l is an empty list, it must be initialized and point to NULL.
- * Returns LIST_ERR_NONE on success and LIST_ERR_DUP_ENTRY if n already 
- *   exists in the list, though in that case the duplicate entry still will be
- *   stored.
+ * Adds n to the list and maintains the increasing order invariant of the list.
+ *   The size element of the list is updated here as well.
  */
-list_err list_insert_ordered(list *l, node *n) {
+void list_insert_ordered(list *l, node *n) {
     node *curr = NULL;
-    list_err ret = LIST_ERR_NONE; 
     int ord = 0;
 
     assert(l != NULL);
-    if (*l == NULL) {
-        *l = n;
-        ret = LIST_ERR_NONE;
+    if (l->head == NULL) {
+        l->head = n;
     }
-    else if (node_order(n, *l) < 0) {
-        n->next = *l;
-        *l = n;
+    else if (node_order(n, l->head) < 0) {
+        n->next = l->head;
+        l->head = n;
     }
     else {
-        curr = *l;
+        curr = l->head;
         ord = node_order(n, curr->next);
         while (ord > 0) {
             curr = curr->next;
             ord = node_order(n, curr->next);
         }
-        if (ord == 0) {
-            ret = LIST_ERR_DUP_ENTRY;
-        }
         n->next = curr->next;
         curr->next = n;
     }
-    return ret;
+    l->size++;
 }
 
 /**
- * Deletes all nodes of l and points l to NULL.
+ * Deletes all nodes of l and points its head to NULL.
  */
 void list_delete(list *l) {
     node *curr = NULL, *next = NULL;
 
     assert(l != NULL);
-    curr = *l;
+    curr = l->head;
     while (curr != NULL) {
         next = curr->next;
         node_delete(curr);
         curr = next;
     }
-    *l = NULL;
+    l->size = 0;
+    l->head = NULL;
 }
 
 /**
@@ -146,15 +147,15 @@ int node_order(node *n1, node *n2) {
 
 /**
  * Puts a lowercase copy of src into the string pointed at by dest.
- * Returns LIST_ERR_NONE on success, LIST_ERR_MALLOC if malloc fails.
+ * Returns 0 on success and -1 if malloc fails.
  */
-list_err lower_string_cpy(char** dest, char *src) {
-    list_err ret = LIST_ERR_NONE;
+int lower_string_cpy(char** dest, char *src) {
+    int ret = 0;
 
     errno = 0;
     *dest = malloc(strlen(src) + 1);
     if (*dest == NULL && errno) {
-        ret = LIST_ERR_MALLOC;
+        ret = -1;
     }
     else {
         for (int i = 0; i < strlen(src) + 1; i++) {

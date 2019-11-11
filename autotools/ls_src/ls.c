@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <limits.h>
+#include <termios.h>
+#include <sys/ioctl.h>
 #include "list.h"
 #include "long_out.h"
 #include "print_utils.h"
@@ -33,7 +35,8 @@ enum ls_err {
     LS_ERR_DIR_STREAM_READ = 3,
     LS_ERR_STAT = 4,
     LS_ERR_PATH_OVERFLOW = 5,
-    LS_ERR_LONG_PARSE = 6
+    LS_ERR_LONG_PARSE = 6,
+    LS_ERR_IOCTL_TTY = 7
 };
 
 // List all the directory entries of path. Outputs the result to standard out.
@@ -41,18 +44,24 @@ ls_err ls(char *path);
 
 // Gets all the entries located in path and stores them in dir_entries.
 ls_err get_entries(const char *path, list *dir_entries);
+
+// Adds the file f_name at path to dir_entries. If path is NULL it is ignored.
+//   dir_entries must already be allocated.
 ls_err add_entry(char *f_name, const char *path, list *dir_entries);
 
-// Gets a file's full path from f_name and the path of the directory that 
-//   contains it, storing it in path_buf.
+// Helper functions for getting a files stat struct.
+ls_err get_f_stat(char *f_name, const char *path, struct stat **f_stat);
 ls_err get_full_path(char *path_buf, int path_buf_len, const char *f_name, \
     const char *path);
 
 // Outputs all entries of dir_entries to stdout.
 void output_entries(list *dir_entries);
 
-// Outputs all entries of dir_entries to stdout using formatting for a terminal.
+// Column based output when printing to a terminal.
 ls_err output_entries_tty(list *dir_entries);
+
+// Helper function for output_entries_tty.
+char** get_tty_out(list *dir_entries);
 
 // Output all entries of dir_entries to stdout using the long-format output.
 ls_err output_entries_long(list *dir_entries);
@@ -64,11 +73,10 @@ int get_options(const int argc, char **argv);
 void ls_perror(ls_err err, char *pname);
 
 /** 
- * Entry point for ls. Ensures arguments are defined and then calls ls
- *   functionality for all specified file paths. On an error, will attempt to
- *   continue running through the rest of the paths unless an apparent memory
- *   allocation has occured.
- * Returns 0 on success, >0 on error
+ * Entry point for ls. Sets argument flags and then calls ls for all specified
+ *   file paths. On an error, will print the error and attempt to continue
+ *   running any additional paths unless a memory allocation error has occured.
+ * Returns 0 on success, >0 on error.
  */
 int main(int argc, char **argv) {
     ls_err err = LS_ERR_NONE;
@@ -76,7 +84,7 @@ int main(int argc, char **argv) {
 
     ret = get_options(argc, argv);
     if (ret < 0) {
-        printf("Usage: %s [-%s]\n", argv[0], OPTION_STRING);
+        printf("Usage: %s [-%s] [paths...]\n", argv[0], OPTION_STRING);
     }
     else {
         int i = 1;
@@ -117,9 +125,10 @@ int main(int argc, char **argv) {
  *   to the type of error.
  */
 ls_err ls(char *path) {
-    list dir_entries = NULL;
+    list dir_entries;
     ls_err ret = LS_ERR_NONE;
 
+    list_init(&dir_entries);
     if (option_d) {
         ret = add_entry(path, NULL, &dir_entries);
     }
@@ -133,7 +142,7 @@ ls_err ls(char *path) {
         ret = output_entries_long(&dir_entries);
     }
     else if (isatty(STDOUT_FILENO)) {
-        output_entries_tty(&dir_entries);
+        ret = output_entries_tty(&dir_entries);
     }
     else {
         output_entries(&dir_entries);
@@ -146,8 +155,8 @@ ls_err ls(char *path) {
 /**
  * Opens and iterates through a directory stream at path, and for each entry
  *   entering it into dir_entries with a call to add_entry.
- * Returns LS_ERR_NONE on success, and any other ls_err otherwise depending
- *   on the type of failure.
+ * Returns LS_ERR_NONE on success, and on error an ls_err value corresponding
+ *   to the type of error.
  */
 ls_err get_entries(const char *path, list *dir_entries) {
     DIR *d = NULL;
@@ -180,47 +189,55 @@ ls_err get_entries(const char *path, list *dir_entries) {
 /** 
  * Adds a new node containing f_name into dir_entries. If option_l or option_i
  *   are true, it also stores the file's stat struct in dir_entries as well.
- *   If path is NULL, stat is just given f_name. Otherwise f_name is appended to
- *   path.
- * Returns LS_ERR_NONE on success, and any other value of ls_err if an error
- *   occured.
+ * Returns LS_ERR_NONE on success, and on error an ls_err value corresponding
+ *   to the type of error.
  */
 ls_err add_entry(char *f_name, const char *path, list *dir_entries) {
     node *ent_node = NULL;
-    struct stat *ent_stat = NULL;
-    char stat_path[PATH_MAX];
+    struct stat *f_stat = NULL;
     ls_err ret = LS_ERR_NONE;
 
     if (option_l || option_i) {
-        errno = 0;
-        ent_stat = malloc(sizeof(struct stat));
-        if (ent_stat == NULL) {
-            ret = LS_ERR_MALLOC;
-        }
-        else if (path != NULL) {
-            ret = get_full_path(stat_path, PATH_MAX, f_name, path);
-            if (ret == LS_ERR_NONE && lstat(stat_path, ent_stat) < 0) {
-                free(ent_stat);
-                ret = LS_ERR_STAT;
-            }
-        }
-        else if (lstat(f_name, ent_stat) < 0) {
-            free(ent_stat);
-            ret = LS_ERR_STAT;
-        }
-        else if (option_i) {
-
-        }
+        ret = get_f_stat(f_name, path, &f_stat);
     }
 
-    if (ret == LS_ERR_NONE) {    
-        ent_node = list_create_node(f_name, ent_stat);
+    if (ret == LS_ERR_NONE) {
+        ent_node = list_create_node(f_name, f_stat);
         if (ent_node == NULL) {
             ret = LS_ERR_MALLOC;
         }
         else {
             list_insert_ordered(dir_entries, ent_node);
         }
+    }
+    return ret;
+}
+
+/**
+ * Allocates and gets the stat struct for f_name at path. If path is NULL, it
+ *   is ignored and f_name is passed by itself to lstat.
+ * Returns LS_ERR_NONE on success, and on error an ls_err value corresponding
+ *   to the type of error.
+ */
+ls_err get_f_stat(char *f_name, const char *path, struct stat **f_stat) {
+    char stat_path[PATH_MAX];
+    ls_err ret = LS_ERR_NONE;
+
+    errno = 0;
+    *f_stat = malloc(sizeof(struct stat));
+    if (*f_stat == NULL) {
+        ret = LS_ERR_MALLOC;
+    }
+    else if (path != NULL) {
+        ret = get_full_path(stat_path, PATH_MAX, f_name, path);
+        if (ret == LS_ERR_NONE && lstat(stat_path, *f_stat) < 0) {
+            free(*f_stat);
+            ret = LS_ERR_STAT;
+        }
+    }
+    else if (lstat(f_name, *f_stat) < 0) {
+        free(*f_stat);
+        ret = LS_ERR_STAT;
     }
     return ret;
 }
@@ -251,39 +268,111 @@ ls_err get_full_path(char *path_buf, int path_buf_len, const char *f_name, \
 }
 
 /**
- * Outputs the filenames stored in dir_entries to stdout
+ * Outputs basic new line seperated output of all files in dir_entries to
+ *   stdout. If option_i is true, their i-node values are printed as well.
  */
 void output_entries(list *dir_entries) {
     node *curr;
 
-    curr = *dir_entries;
+    curr = dir_entries->head;
     while (curr != NULL) {
         if (option_i) {
-            printf(INO_PRINTF " ", curr->data.f_stat->st_ino);
+            printf(INO_PRINTF" ", curr->data.f_stat->st_ino);
         }
         printf("%s\n", curr->data.f_name);
         curr = curr->next;
     }
 }
 
+/**
+ * Output of all files in dir_entries to stdout when stdout is a terminal. If
+ *   option_i is true, their i-node values are printed as well.
+ * Files are placed in columns based on the size of the largest entry to be
+ *   printed.
+ * Returns LS_ERR_NONE on success, LS_ERR_MALLOC if memory allocation or the
+ *   LS_ERR_IOCTL_TTY if the query for the terminal's size attributes failed.
+ */
 ls_err output_entries_tty(list *dir_entries) {
-    /*node *curr;
-    char (*ino_buf)[];
+    char **tty_out = NULL;
+    int max_ent_len, max_col_width, col_num;
+    static const int min_col_space = 4;
+    struct winsize wsize;
+    ls_err ret = LS_ERR_NONE;
 
-    errno = 0;
-    ino_buf = malloc
+    tty_out = get_tty_out(dir_entries);
+    if (tty_out == NULL) {
+        ret = LS_ERR_MALLOC;
+    }
+    else if (tty_out[0] != NULL) {
+        max_ent_len = strlen(tty_out[0]);
+        for (int i = 1; i < dir_entries->size; i++) {
+            if (strlen(tty_out[i]) > max_ent_len) {
+                max_ent_len = strlen(tty_out[i]);
+            }
+        }
 
-    curr = *dir_entries;
-    while (curr != NULL) {
-
-    }*/
-    output_entries(dir_entries);
-    return LS_ERR_NONE;
+        max_col_width = max_ent_len + min_col_space;
+        errno = 0;
+        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &wsize) < 0) {
+            ret = LS_ERR_IOCTL_TTY;
+        }
+        else {
+            col_num = wsize.ws_row / max_col_width;
+            int col_curr = 0;
+            for (int i = 0; i < dir_entries->size; i++) {
+                if (col_curr == col_num) {
+                    printf("\n");
+                    col_curr = 0;
+                }
+                printf("%s%*s", tty_out[i], \
+                    max_col_width - (int)strlen(tty_out[i]), "");
+                col_curr++;
+            }
+            printf("\n");
+        }
+    }
+    else {
+        printf("\n");
+    }
+    return ret;
 }
 
 /**
- * Outputs the filenames and stat information in dir_entries to stdout. asserts
- *   that each entry has a non-null f_stat field.
+ * Creates an array of strings for terminal output in output_entries_tty. If
+ *   option_i is true, the i-node is prepended to the file name.
+ * Returns the array on success and NULL if memory allocation failed.
+ */
+char** get_tty_out(list *dir_entries) {
+    node *curr = NULL;
+    char **tty_out;
+
+    errno = 0;
+    tty_out = malloc(sizeof(char*) * dir_entries->size);
+    if (tty_out != NULL) {
+        curr = dir_entries->head;
+        for (int i = 0; i < dir_entries->size; i++) {
+            errno = 0;
+            if (option_i) {
+                tty_out[i] = malloc(strlen(curr->data.f_name) + \
+                    get_f_max_strlen(INO_PRINTF) + 1);
+                sprintf(tty_out[i] + strlen(curr->data.f_name), \
+                    INO_PRINTF" ", curr->data.f_stat->st_ino);
+                strncpy(tty_out[i], curr->data.f_name, \
+                    strlen(curr->data.f_name) + 1);
+            }
+            else {
+                tty_out[i] = curr->data.f_name;
+            }
+            curr = curr->next;
+        }
+        assert(curr == NULL);
+    }
+    return tty_out;
+}
+
+/**
+ * Outputs the filenames and stat information in dir_entries to stdout. If
+ *   option_i is true, their i-node values are printed as well.
  * Returns LS_ERR_NONE on success, and LS_ERR_LONG_PARSE if the long-format
  *   output could not be parsed.
  */
@@ -293,7 +382,7 @@ ls_err output_entries_long(list *dir_entries) {
     int err = 0;
     ls_err ret = LS_ERR_NONE;
     
-    curr = *dir_entries;
+    curr = dir_entries->head;
     while (curr != NULL && ret == LS_ERR_NONE) {
         assert(curr->data.f_stat != NULL);
 
@@ -315,11 +404,12 @@ ls_err output_entries_long(list *dir_entries) {
  * Returns 0 on success, -1 if an invalid option was found.
  */
 int get_options(const int argc, char **argv) {
-    char opt = -1;
+    char opt;
     int ret = 0;
     
-    opt = getopt(argc, argv, OPTION_STRING);
-    while (opt != -1) {
+    opt = 0;
+    while (opt != -1 && ret != -1) {
+        opt = getopt(argc, argv, OPTION_STRING);
         switch (opt) {
         case 'a':
             option_a = true;
@@ -336,7 +426,6 @@ int get_options(const int argc, char **argv) {
         case '?':
             ret = -1;
         }
-        opt = getopt(argc, argv, OPTION_STRING);
     }
     return ret;
 }
@@ -346,6 +435,9 @@ int get_options(const int argc, char **argv) {
  *   In standard linux fashion, the program's name is prefixed to the error 
  *   output for clearer messages when chains of programs are piped into one
  *   another.
+ * Since this is the only function that uses the values of ls_err_msg, its
+ *   included as a static array that must have the same number of elements
+ *   as the ls_err enum.
  * If errno is set, this prints using perror. This errno value should be 
  *   associated with the err actually given, as almost all the ls_err's are
  *   fatal and instantly break out to main with no subsequent system or 
@@ -360,13 +452,14 @@ void ls_perror(ls_err err, char *pname) {
         ": error getting file statistics",
         ": error converting path: overflow detected",
         ": error parsing long-format output"
+        ": error calling ioctl_tty"
     };
     char str_buf[4096];
     int errno_temp = errno;
 
     if (errno_temp) {
-        memcpy(str_buf, pname, strlen(pname) + 1);
-        memcpy(str_buf + strlen(pname), ls_err_msg[err], \
+        strncpy(str_buf, pname, strlen(pname) + 1);
+        strncpy(str_buf + strlen(pname), ls_err_msg[err], \
             strlen(ls_err_msg[err]) + 1);
     
         errno = errno_temp;
