@@ -165,10 +165,11 @@ char get_type_char(mode_t mode) {
     static const char type_char[] = {'b', 'c', 'd', 'f', 'l', 'p', 's', '?'};
     static const int type[] = {S_IFBLK, S_IFCHR, S_IFDIR, S_IFREG, S_IFLNK, \
         S_IFIFO, S_IFSOCK};
+    static const int type_c = 7;
     
     mode &= S_IFMT;
     int i = 0;
-    while (i < 7 && type[i] != mode) {
+    while (i < type_c && type[i] != mode) {
         i++;
     }
 

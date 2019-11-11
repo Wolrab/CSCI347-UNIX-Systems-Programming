@@ -8,7 +8,7 @@
 #include <limits.h>
 #include "list.h"
 #include "long_out.h"
-#include "ls_defs.h"
+#include "print_utils.h"
 
 // All valid options for ls
 #define OPTION_STRING "adil"
@@ -21,7 +21,7 @@ bool option_a = false;
 bool option_l = false;
 // Output i-node number
 bool option_i = false;
-// Output just the file specified
+// Output just the file specified, don't open it as a directory
 bool option_d = false;
 
 // Error definitions
@@ -50,6 +50,9 @@ ls_err get_full_path(char *path_buf, int path_buf_len, const char *f_name, \
 
 // Outputs all entries of dir_entries to stdout.
 void output_entries(list *dir_entries);
+
+// Outputs all entries of dir_entries to stdout using formatting for a terminal.
+ls_err output_entries_tty(list *dir_entries);
 
 // Output all entries of dir_entries to stdout using the long-format output.
 ls_err output_entries_long(list *dir_entries);
@@ -129,6 +132,9 @@ ls_err ls(char *path) {
     else if (option_l) {
         ret = output_entries_long(&dir_entries);
     }
+    else if (isatty(STDOUT_FILENO)) {
+        output_entries_tty(&dir_entries);
+    }
     else {
         output_entries(&dir_entries);
     }
@@ -186,23 +192,24 @@ ls_err add_entry(char *f_name, const char *path, list *dir_entries) {
     ls_err ret = LS_ERR_NONE;
 
     if (option_l || option_i) {
-        if (ret == LS_ERR_NONE) {
-            errno = 0;
-            ent_stat = malloc(sizeof(struct stat));
-            if (ent_stat == NULL) {
-                ret = LS_ERR_MALLOC;
-            }
-            else if (path != NULL) {
-                ret = get_full_path(stat_path, PATH_MAX, f_name, path);
-                if (ret == LS_ERR_NONE && lstat(stat_path, ent_stat) < 0) {
-                    free(ent_stat);
-                    ret = LS_ERR_STAT;
-                }
-            }
-            else if (lstat(f_name, ent_stat) < 0) {
+        errno = 0;
+        ent_stat = malloc(sizeof(struct stat));
+        if (ent_stat == NULL) {
+            ret = LS_ERR_MALLOC;
+        }
+        else if (path != NULL) {
+            ret = get_full_path(stat_path, PATH_MAX, f_name, path);
+            if (ret == LS_ERR_NONE && lstat(stat_path, ent_stat) < 0) {
                 free(ent_stat);
                 ret = LS_ERR_STAT;
             }
+        }
+        else if (lstat(f_name, ent_stat) < 0) {
+            free(ent_stat);
+            ret = LS_ERR_STAT;
+        }
+        else if (option_i) {
+
         }
     }
 
@@ -248,14 +255,30 @@ ls_err get_full_path(char *path_buf, int path_buf_len, const char *f_name, \
  */
 void output_entries(list *dir_entries) {
     node *curr;
+
     curr = *dir_entries;
     while (curr != NULL) {
         if (option_i) {
-            printf(INO_PRINTF" ", curr->data.f_stat->st_ino);
+            printf(INO_PRINTF " ", curr->data.f_stat->st_ino);
         }
         printf("%s\n", curr->data.f_name);
         curr = curr->next;
     }
+}
+
+ls_err output_entries_tty(list *dir_entries) {
+    /*node *curr;
+    char (*ino_buf)[];
+
+    errno = 0;
+    ino_buf = malloc
+
+    curr = *dir_entries;
+    while (curr != NULL) {
+
+    }*/
+    output_entries(dir_entries);
+    return LS_ERR_NONE;
 }
 
 /**
@@ -279,7 +302,7 @@ ls_err output_entries_long(list *dir_entries) {
             ret = LS_ERR_LONG_PARSE;
         }
         else {
-            long_out_print(&long_out);
+            long_out_print(&long_out, option_i);
             long_out_delete(&long_out);
             curr = curr->next;
         }

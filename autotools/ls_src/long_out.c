@@ -61,19 +61,28 @@ void parse_mode_str(char *mode_s, mode_t mode) {
  */
 int parse_usr_str(char **usr_str, uid_t uid) {
     struct passwd *passwd_ent;
-    char num_buf[32];
+    char *uid_str;
     int ret = 0;
 
     passwd_ent = getpwuid(uid);
     if (passwd_ent == NULL) {
-        sprintf(num_buf, UID_PRINTF, uid);
         errno = 0;
-        *usr_str = malloc(strlen(num_buf)+1);
-        if (*usr_str == NULL && errno) {
+        uid_str = malloc(get_f_max_strlen(UID_PRINTF));
+        if (uid_str == NULL) {
             ret = -1;
         }
         else {
-            strncpy(*usr_str, num_buf, strlen(num_buf)+1);
+            sprintf(uid_str, UID_PRINTF, uid);
+
+            errno = 0;
+            *usr_str = malloc(strlen(uid_str)+1);
+            if (*usr_str == NULL && errno) {
+                ret = -1;
+            }
+            else {
+                strncpy(*usr_str, uid_str, strlen(uid_str)+1);
+            }
+            free(uid_str);
         }
     }
     else {
@@ -97,19 +106,28 @@ int parse_usr_str(char **usr_str, uid_t uid) {
  */
 int parse_grp_str(char **grp_str, gid_t gid) {
     struct group *group_ent;
-    char num_buf[32];
+    char *gid_str;
     int ret = 0;
 
     group_ent = getgrgid(gid);
     if (group_ent == NULL) {
-        sprintf(num_buf, GID_PRINTF, gid);
         errno = 0;
-        *grp_str = malloc(strlen(num_buf)+1);
-        if (*grp_str == NULL && errno) {
+        gid_str = malloc(get_f_max_strlen(GID_PRINTF));
+        if (gid_str == NULL) {
             ret = -1;
         }
         else {
-            strncpy(*grp_str, num_buf, strlen(num_buf)+1);
+            sprintf(gid_str, GID_PRINTF, gid);
+
+            errno = 0;
+            *grp_str = malloc(strlen(gid_str)+1);
+            if (*grp_str == NULL && errno) {
+                ret = -1;
+            }
+            else {
+                strncpy(*grp_str, gid_str, strlen(gid_str)+1);
+            }
+            free(gid_str);
         }
     }
     else {
@@ -147,7 +165,7 @@ int parse_mtim_str(char *mtim_str, time_t mtim) {
  * Prints a long format ls entry given long_out. String concatenation is used
  *   here to make changing of the system specific formatting values easier.
  */
-void long_out_print(struct long_out_s *long_out) {
+void long_out_print(struct long_out_s *long_out, bool option_i) {
     if (option_i) {
         printf(INO_PRINTF " ", long_out->i_node);
     }
@@ -173,10 +191,11 @@ char get_type_char(mode_t mode) {
     static const char type_char[] = {'b', 'c', 'd', '-', 'l', 'p', 's', '?'};
     static const int type[] = {S_IFBLK, S_IFCHR, S_IFDIR, S_IFREG, S_IFLNK, \
         S_IFIFO, S_IFSOCK};
+    static const int type_c = 7;
     
     mode &= S_IFMT;
     int i = 0;
-    while (i < 7 && type[i] != mode) {
+    while (i < type_c && type[i] != mode) {
         i++;
     }
 

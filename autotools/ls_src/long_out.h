@@ -10,7 +10,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include "ls_defs.h"
+#include <stdbool.h>
+#include "print_utils.h"
 
 // Defines for long_out_s
 #define MODE_STR_LEN 11
@@ -50,7 +51,7 @@ int parse_grp_str(char **grp_str, gid_t gid);
 int parse_mtim_str(char *mtim_str, time_t mtim);
 
 // Prints an ls entry in long-format given long_out
-void long_out_print(struct long_out_s *long_out);
+void long_out_print(struct long_out_s *long_out, bool option_i);
 
 // Appropriately frees long_out's elements, leaving the struct itself.
 void long_out_delete(struct long_out_s *long_out);
