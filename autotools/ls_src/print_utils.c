@@ -5,13 +5,30 @@
  */
 #include "print_utils.h"
 
+// Constants for get_f_max_strlen. The comments above each show how this max
+//   value was obtained, and the assertions in get_f_max_strlen ensure that
+//   these assumptions are true.
+
+// strlen("-2147483648")+1
+const int int_max_strlen = 12;
+// strlen("4294967295")+1
+const int uint_max_strlen = 11;
+// strlen("-9223372036854775808")+1
+const int long_max_strlen = 21;
+// strlen("18446744073709551615")+1
+const int ulong_max_strlen = 21;
+// strlen("-9223372036854775808")+1
+const int llong_max_strlen = 21;
+// strlen("18446744073709551615")+1
+const int ullong_max_strlen = 21;
+
 /**
  * Gets the maximum number of characters that the given format string could take
  *   up when processed. This is only defined for decimal types that this program
  *   processes in a stat struct plus a couple others.
- * The asserts are included to make this job much easier, as these values are
- *   universal, but if one of these does not hold the program will fail and
- *   display which assertion was broken.
+ * The asserts are necessary since this program relies on fairly universal, but
+ *   necisarilly hard-coded assumptions. If one of these does not hold, the 
+ *   program will fail and display which assertion was broken.
  * Returns the number of characters on success, and -1 if the format string is
  *   unknown by this function.
  */
@@ -22,13 +39,6 @@ int get_f_max_strlen(char *format) {
     assert(ULONG_MAX == 18446744073709551615UL);
     assert(LLONG_MAX == 9223372036854775807LL);
     assert(ULLONG_MAX == 18446744073709551615ULL);
-
-    static int int_max_strlen = 12;    // "-2147483648"
-    static int uint_max_strlen = 11;   // "4294967295"
-    static int long_max_strlen = 21;   // "-9223372036854775808"
-    static int ulong_max_strlen = 21;  // "18446744073709551615"
-    static int llong_max_strlen = 21;  // "-9223372036854775808"
-    static int ullong_max_strlen = 21; // "18446744073709551615"
 
     if (strncmp(format, "%d", 3) == 0) {
         return int_max_strlen;

@@ -295,7 +295,7 @@ void output_entries(list *dir_entries) {
 ls_err output_entries_tty(list *dir_entries) {
     char **tty_out = NULL;
     int max_ent_len, max_col_width, col_num;
-    static const int min_col_space = 4;
+    static const int min_col_space = 3;
     struct winsize wsize;
     ls_err ret = LS_ERR_NONE;
 
@@ -345,27 +345,44 @@ ls_err output_entries_tty(list *dir_entries) {
 char** get_tty_out(list *dir_entries) {
     node *curr = NULL;
     char **tty_out;
+    int err = 0;
 
     errno = 0;
     tty_out = malloc(sizeof(char*) * dir_entries->size);
     if (tty_out != NULL) {
         curr = dir_entries->head;
-        for (int i = 0; i < dir_entries->size; i++) {
-            errno = 0;
+        int i = 0;
+        while (err == 0 && curr != NULL && i < dir_entries->size) {
             if (option_i) {
+                errno = 0;
                 tty_out[i] = malloc(strlen(curr->data.f_name) + \
                     get_f_max_strlen(INO_PRINTF) + 1);
-                sprintf(tty_out[i] + strlen(curr->data.f_name), \
-                    INO_PRINTF" ", curr->data.f_stat->st_ino);
-                strncpy(tty_out[i], curr->data.f_name, \
-                    strlen(curr->data.f_name) + 1);
+                if (tty_out[i] == NULL) {
+                    for (int j = 0; j < i; j++) {
+                        free(tty_out[j]);
+                    }
+                    err = -1;
+                }
+                else {
+                    sprintf(tty_out[i] + strlen(curr->data.f_name), \
+                        INO_PRINTF" ", curr->data.f_stat->st_ino);
+                    strncpy(tty_out[i], curr->data.f_name, \
+                        strlen(curr->data.f_name) + 1);
+                }
             }
             else {
                 tty_out[i] = curr->data.f_name;
             }
             curr = curr->next;
+            i++;
         }
-        assert(curr == NULL);
+        if (err == 0) {
+            assert(curr == NULL && i == dir_entries->size);
+        }
+        else {
+            free(tty_out);
+            tty_out = NULL;
+        }
     }
     return tty_out;
 }
@@ -377,24 +394,18 @@ char** get_tty_out(list *dir_entries) {
  *   output could not be parsed.
  */
 ls_err output_entries_long(list *dir_entries) {
-    struct long_out_s long_out;
-    node *curr;
+    struct dir_long_out_s dir_long_out;
     int err = 0;
     ls_err ret = LS_ERR_NONE;
     
-    curr = dir_entries->head;
-    while (curr != NULL && ret == LS_ERR_NONE) {
-        assert(curr->data.f_stat != NULL);
-
-        err = long_out_parse(&long_out, curr->data.f_stat, curr->data.f_name);
-        if (err < 0) {
-            ret = LS_ERR_LONG_PARSE;
-        }
-        else {
-            long_out_print(&long_out, option_i);
-            long_out_delete(&long_out);
-            curr = curr->next;
-        }
+    dir_long_out_init(&dir_long_out);
+    err = dir_long_out_create(&dir_long_out, dir_entries);
+    if (err < 0) {
+        ret = LS_ERR_LONG_PARSE;
+    }
+    else {
+        dir_long_out_print(&dir_long_out, option_i);
+        dir_long_out_delete(&dir_long_out);
     }
     return ret;
 }

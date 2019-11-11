@@ -6,11 +6,92 @@
 #include "long_out.h"
 
 /**
- * Fills long_out using the fields given in data.
+ * TODO:
+ */
+void dir_long_out_init(struct dir_long_out_s *dir_long_out) {
+    dir_long_out->ino_str_max   = 0;
+    dir_long_out->nlink_str_max = 0;
+    dir_long_out->usr_str_max   = 0;
+    dir_long_out->grp_str_max   = 0;
+    dir_long_out->size_str_max  = 0;
+    dir_long_out->entries   = NULL;
+    dir_long_out->entries_c = 0;
+}
+
+/**
+ * TODO:
+ * 
+ */
+int dir_long_out_create(struct dir_long_out_s *dir_long_out, 
+        list *dir_entries) {
+    node *curr = NULL;
+    int ret = 0;
+
+    dir_long_out->entries = malloc(sizeof(struct long_out_s) * \
+        dir_entries->size);
+    if (dir_long_out->entries && errno) {
+        ret = -1;
+    }
+    else {
+        curr = dir_entries->head;
+        int i = 0;
+        while (ret == 0 && curr != NULL && i < dir_entries->size) {
+            ret = long_out_parse(&(dir_long_out->entries[i]), \
+                curr->data.f_name, curr->data.f_stat);
+            if (ret < 0) {
+                dir_long_out_delete(dir_long_out);
+            }
+            else {
+                dir_long_out->entries_c++;
+                curr = curr->next;
+                i++;
+            }
+        }
+        if (ret == 0) {
+            assert(curr == NULL && i == dir_entries->size);
+            set_max_strs(dir_long_out);
+        }
+    }
+    return ret;
+}
+
+void set_max_strs(struct dir_long_out_s *dir_long_out) {
+    for (int i = 0; i < dir_long_out->entries_c; i++) {
+        if (strlen(dir_long_out->entries[i].ino_str) > \
+                dir_long_out->ino_str_max) {
+            dir_long_out->ino_str_max = \
+                strlen(dir_long_out->entries[i].ino_str);
+        }
+        if (strlen(dir_long_out->entries[i].nlink_str) > \
+                dir_long_out->nlink_str_max) {
+            dir_long_out->nlink_str_max = \
+                strlen(dir_long_out->entries[i].nlink_str);
+        }
+        if (strlen(dir_long_out->entries[i].usr_str) > \
+                dir_long_out->usr_str_max) {
+            dir_long_out->usr_str_max = \
+                strlen(dir_long_out->entries[i].usr_str);
+        }
+        if (strlen(dir_long_out->entries[i].grp_str) > \
+                dir_long_out->grp_str_max) {
+            dir_long_out->grp_str_max = \
+                strlen(dir_long_out->entries[i].grp_str);
+        }
+        if (strlen(dir_long_out->entries[i].size_str) > \
+                dir_long_out->size_str_max) {
+            dir_long_out->size_str_max = \
+                strlen(dir_long_out->entries[i].size_str);
+        }
+    }
+}
+
+/**
+ * Fills long_out using the fields given in data. Calls parse_misc_st_str last
+ *   so there is no need to remove all those elements on a secondary failure.
  * Returns 0 on success, -1 if the parsing failed.
  */
-int long_out_parse(struct long_out_s *long_out, struct stat *f_stat, \
-        char *f_name) {
+int long_out_parse(struct long_out_s *long_out, char *f_name, \
+        struct stat *f_stat) {
     int ret = 0;
     ret = parse_usr_str(&(long_out->usr_str), f_stat->st_uid);
     if (ret == 0) {
@@ -25,15 +106,18 @@ int long_out_parse(struct long_out_s *long_out, struct stat *f_stat, \
                 free(long_out->grp_str);
             }
             else {
-                parse_mode_str(long_out->mode_str, f_stat->st_mode);
-                long_out->i_node = f_stat->st_ino;
-                long_out->nlink = f_stat->st_nlink;
-                long_out->size = f_stat->st_size;
-                long_out->f_name = f_name;
+                ret = parse_misc_st_str(long_out, f_stat);
+                if (ret < 0) {
+                    free(long_out->usr_str);
+                    free(long_out->grp_str);
+                }
+                else {
+                    parse_mode_str(long_out->mode_str, f_stat->st_mode);
+                    long_out->f_name = f_name;
+                }
             }
         }
     }
-    
     return ret;
 }
 
@@ -164,26 +248,89 @@ int parse_mtim_str(char *mtim_str, time_t mtim) {
 }
 
 /**
- * Prints a long format ls entry given long_out. String concatenation is used
- *   here to make changing of the system specific formatting values easier. If
- *   option_i is true, the i-node value is printed as well.
+ * Parses all members of f_stat to strings who need no special formatting and
+ *   puts them in long_out.
+ * Returns 0 on success, -1 on error.
  */
-void long_out_print(struct long_out_s *long_out, bool option_i) {
-    if (option_i) {
-        printf(INO_PRINTF " ", long_out->i_node);
+int parse_misc_st_str(struct long_out_s *long_out, struct stat *f_stat) {
+    int ret = 0;
+
+    errno = 0;
+    long_out->ino_str = malloc(get_f_max_strlen(INO_PRINTF));
+    if (long_out->ino_str == NULL) {
+        ret = -1;
     }
-    printf("%s " NLINK_PRINTF " %s %s " OFF_PRINTF " %s %s\n",
-        long_out->mode_str, long_out->nlink, long_out->usr_str,
-        long_out->grp_str, long_out->size, long_out->mtim_str,
-        long_out->f_name);
+    else {
+        sprintf(long_out->ino_str, INO_PRINTF, f_stat->st_ino);
+
+        errno = 0;
+        long_out->nlink_str = malloc(get_f_max_strlen(NLINK_PRINTF));
+        if (long_out->nlink_str == NULL) {
+            free(long_out->ino_str);
+            ret = -1;
+        }
+        else {
+            sprintf(long_out->nlink_str, NLINK_PRINTF, f_stat->st_nlink);
+
+            errno = 0;
+            long_out->size_str = malloc(get_f_max_strlen(OFF_PRINTF));
+            if (long_out->size_str == NULL) {
+                free(long_out->ino_str);
+                free(long_out->nlink_str);
+                ret = -1;
+            }
+            else {
+                sprintf(long_out->size_str, OFF_PRINTF, f_stat->st_size);
+            }
+        }
+    }
+    
+    return ret;
 }
 
 /**
- * Frees all dynamically allocated fields of long_out.
+ * Prints the given list of entries in long-format output using each entrie's
+ *   parsed long_out_s struct and formatting informtion from dir_long_out. If
+ *   option_i is true, it will also prepend each entry with its i-node number.
+ */
+void dir_long_out_print(struct dir_long_out_s *dir_long_out, bool option_i) {
+    struct long_out_s *curr_ent;
+    for (int i = 0; i < dir_long_out->entries_c; i++) {
+        curr_ent = &(dir_long_out->entries[i]);
+        if (option_i) {
+            printf("%*s ", dir_long_out->ino_str_max, curr_ent->ino_str);
+        }
+        printf("%s %*s %*s %*s %*s %s %s\n",                  \
+            curr_ent->mode_str,                               \
+            dir_long_out->nlink_str_max, curr_ent->nlink_str, \
+            dir_long_out->usr_str_max,   curr_ent->usr_str,   \
+            dir_long_out->grp_str_max,   curr_ent->grp_str,   \
+            dir_long_out->size_str_max,  curr_ent->size_str,  \
+            curr_ent->mtim_str,                               \
+            curr_ent->f_name);
+    }
+}
+
+/**
+ * TODO:
+ */
+void dir_long_out_delete(struct dir_long_out_s *dir_long_out) {
+    for (int i = 0; i < dir_long_out->entries_c; i++) {
+        long_out_delete(&(dir_long_out->entries[i]));
+    }
+    free(dir_long_out->entries);
+    dir_long_out_init(dir_long_out);
+}
+
+/**
+ * Frees all elements of long_out
  */
 void long_out_delete(struct long_out_s *long_out) {
     free(long_out->usr_str);
     free(long_out->grp_str);
+    free(long_out->ino_str);
+    free(long_out->nlink_str);
+    free(long_out->size_str);
 }
 
 /**
