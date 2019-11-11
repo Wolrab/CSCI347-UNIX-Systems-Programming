@@ -98,6 +98,13 @@ int main(int argc, char **argv) {
                 ret = err;
             }
         }
+        else if (argv[i+1] == NULL) {
+            err = ls(argv[i]);
+            if (err != LS_ERR_NONE) {
+                ls_perror(err, argv[0]);
+                ret = err;
+            }
+        }
         else {
             int j = i;
             while (argv[j] != NULL && argv[j][0] != '-' \
