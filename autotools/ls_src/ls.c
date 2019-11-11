@@ -395,12 +395,15 @@ char** get_tty_out(list *dir_entries) {
  */
 ls_err output_entries_long(list *dir_entries) {
     struct dir_long_out_s dir_long_out;
-    int err = 0;
+    l_out_err err = 0;
     ls_err ret = LS_ERR_NONE;
     
     dir_long_out_init(&dir_long_out);
     err = dir_long_out_create(&dir_long_out, dir_entries);
-    if (err < 0) {
+    if (err == L_OUT_ERR_MALLOC) {
+        ret = LS_ERR_MALLOC;
+    }
+    else if (err == L_OUT_ERR_PARSE) {
         ret = LS_ERR_LONG_PARSE;
     }
     else {

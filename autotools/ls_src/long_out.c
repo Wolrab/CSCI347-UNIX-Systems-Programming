@@ -1,12 +1,13 @@
 /**
- * Functions to handle the long format of output for ls. It converts all
- *   relevant input from a stat structure to formatted strings, and then prints
- *   the result using long_out_print.
+ * Functions to handle the long format of output for ls. A list of file entries
+ *   gets converted into a struct holding all data/formatting information
+ *   needed with dir_long_out_create, and can then be printed to stdout by
+ *   calling dir_long_out_print.
  */
 #include "long_out.h"
 
 /**
- * TODO:
+ * Initializes dir_long_out.
  */
 void dir_long_out_init(struct dir_long_out_s *dir_long_out) {
     dir_long_out->ino_str_max   = 0;
@@ -19,13 +20,17 @@ void dir_long_out_init(struct dir_long_out_s *dir_long_out) {
 }
 
 /**
- * TODO:
- * 
+ * Creates a long_out struct for every entry in dir_entries and puts them into
+ *   the entries field of dir_long_out. Also sets necessary values for
+ *   formatting. On failure all memory is deallocated and the list is returned
+ *   back to an initialized state.
+ * Returns L_OUT_ERR_NONE on success, L_OUT_ERR_MALLOC if memory allocation
+ *   fails, and L_OUT_ERR_PARSE if parsing fails.
  */
-int dir_long_out_create(struct dir_long_out_s *dir_long_out, 
+l_out_err dir_long_out_create(struct dir_long_out_s *dir_long_out, 
         list *dir_entries) {
     node *curr = NULL;
-    int ret = 0;
+    l_out_err ret = L_OUT_ERR_NONE;
 
     dir_long_out->entries = malloc(sizeof(struct long_out_s) * \
         dir_entries->size);
@@ -38,7 +43,7 @@ int dir_long_out_create(struct dir_long_out_s *dir_long_out,
         while (ret == 0 && curr != NULL && i < dir_entries->size) {
             ret = long_out_parse(&(dir_long_out->entries[i]), \
                 curr->data.f_name, curr->data.f_stat);
-            if (ret < 0) {
+            if (ret != L_OUT_ERR_NONE) {
                 dir_long_out_delete(dir_long_out);
             }
             else {
@@ -47,7 +52,7 @@ int dir_long_out_create(struct dir_long_out_s *dir_long_out,
                 i++;
             }
         }
-        if (ret == 0) {
+        if (ret == L_OUT_ERR_NONE) {
             assert(curr == NULL && i == dir_entries->size);
             set_max_strs(dir_long_out);
         }
@@ -55,6 +60,10 @@ int dir_long_out_create(struct dir_long_out_s *dir_long_out,
     return ret;
 }
 
+/**
+ * Sets the maximum string values of all elements in dir_long_out that can have
+ *   changing lengths and could screw up the output.
+ */
 void set_max_strs(struct dir_long_out_s *dir_long_out) {
     for (int i = 0; i < dir_long_out->entries_c; i++) {
         if (strlen(dir_long_out->entries[i].ino_str) > \
@@ -86,28 +95,29 @@ void set_max_strs(struct dir_long_out_s *dir_long_out) {
 }
 
 /**
- * Fills long_out using the fields given in data. Calls parse_misc_st_str last
- *   so there is no need to remove all those elements on a secondary failure.
- * Returns 0 on success, -1 if the parsing failed.
+ * Fills long_out using f_stat and f_name. f_name is stored directly and any
+ *   value of f_stat to be stored is parsed to a string by a secondary function.
+ * Returns L_OUT_ERR_NONE on success, L_OUT_ERR_MALLOC if memory allocation
+ *   failed, and L_OUT_ERR_PARSE if the parsing failed.
  */
-int long_out_parse(struct long_out_s *long_out, char *f_name, \
+l_out_err long_out_parse(struct long_out_s *long_out, char *f_name, \
         struct stat *f_stat) {
-    int ret = 0;
+    l_out_err ret = L_OUT_ERR_NONE;
     ret = parse_usr_str(&(long_out->usr_str), f_stat->st_uid);
-    if (ret == 0) {
+    if (ret == L_OUT_ERR_NONE) {
         ret = parse_grp_str(&(long_out->grp_str), f_stat->st_gid);
-        if (ret < 0) {
+        if (ret != L_OUT_ERR_NONE) {
             free(long_out->usr_str);
         }
         else {
             ret = parse_mtim_str(long_out->mtim_str, f_stat->st_mtime);
-            if (ret < 0) {
+            if (ret != L_OUT_ERR_NONE) {
                 free(long_out->usr_str);
                 free(long_out->grp_str);
             }
             else {
                 ret = parse_misc_st_str(long_out, f_stat);
-                if (ret < 0) {
+                if (ret != L_OUT_ERR_NONE) {
                     free(long_out->usr_str);
                     free(long_out->grp_str);
                 }
@@ -142,19 +152,20 @@ void parse_mode_str(char *mode_s, mode_t mode) {
  * Allocates and sets the value pointed at by usr_str to be the user name 
  *   of uid. If uid has no corresponding username, the string representation of
  *   uid is stored instead.
- * Returns 0 on success, -1 if the parsing failed.
+ * Returns L_OUT_ERR_NONE on success and L_OUT_ERR_MALLOC if memory allocation
+ *   failed.
  */
-int parse_usr_str(char **usr_str, uid_t uid) {
+l_out_err parse_usr_str(char **usr_str, uid_t uid) {
     struct passwd *passwd_ent;
     char *uid_str;
-    int ret = 0;
+    l_out_err ret = L_OUT_ERR_NONE;
 
     passwd_ent = getpwuid(uid);
     if (passwd_ent == NULL) {
         errno = 0;
         uid_str = malloc(get_f_max_strlen(UID_PRINTF));
         if (uid_str == NULL) {
-            ret = -1;
+            ret = L_OUT_ERR_MALLOC;
         }
         else {
             sprintf(uid_str, UID_PRINTF, uid);
@@ -162,7 +173,7 @@ int parse_usr_str(char **usr_str, uid_t uid) {
             errno = 0;
             *usr_str = malloc(strlen(uid_str)+1);
             if (*usr_str == NULL && errno) {
-                ret = -1;
+                ret = L_OUT_ERR_MALLOC;
             }
             else {
                 strncpy(*usr_str, uid_str, strlen(uid_str)+1);
@@ -174,7 +185,7 @@ int parse_usr_str(char **usr_str, uid_t uid) {
         errno = 0;
         *usr_str = malloc(strlen(passwd_ent->pw_name) + 1);
         if (*usr_str == NULL && errno) {
-            ret = -1;
+            ret = L_OUT_ERR_MALLOC;
         }
         else {
             strncpy(*usr_str, passwd_ent->pw_name, \
@@ -188,19 +199,20 @@ int parse_usr_str(char **usr_str, uid_t uid) {
  * Allocates and sets the value pointed at by grp_str to be the group name 
  *   of gid. If gid has no corresponding group name, the string representation 
  *   of gid is stored instead.
- * Returns 0 on success, -1 if the parsing failed.
+ * Returns L_OUT_ERR_NONE on success and L_OUT_ERR_MALLOC if memory allocation
+ *   failed.
  */
-int parse_grp_str(char **grp_str, gid_t gid) {
+l_out_err parse_grp_str(char **grp_str, gid_t gid) {
     struct group *group_ent;
     char *gid_str;
-    int ret = 0;
+    l_out_err ret = L_OUT_ERR_NONE;
 
     group_ent = getgrgid(gid);
     if (group_ent == NULL) {
         errno = 0;
         gid_str = malloc(get_f_max_strlen(GID_PRINTF));
         if (gid_str == NULL) {
-            ret = -1;
+            ret = L_OUT_ERR_MALLOC;
         }
         else {
             sprintf(gid_str, GID_PRINTF, gid);
@@ -208,7 +220,7 @@ int parse_grp_str(char **grp_str, gid_t gid) {
             errno = 0;
             *grp_str = malloc(strlen(gid_str)+1);
             if (*grp_str == NULL && errno) {
-                ret = -1;
+                ret = L_OUT_ERR_MALLOC;
             }
             else {
                 strncpy(*grp_str, gid_str, strlen(gid_str)+1);
@@ -220,7 +232,7 @@ int parse_grp_str(char **grp_str, gid_t gid) {
         errno = 0;
         *grp_str = malloc(strlen(group_ent->gr_name) + 1);
         if (*grp_str == NULL && errno) {
-            ret = -1;
+            ret = L_OUT_ERR_MALLOC;
         }
         else {
             strncpy(*grp_str, group_ent->gr_name, \
@@ -232,16 +244,16 @@ int parse_grp_str(char **grp_str, gid_t gid) {
 
 /** 
  * Gets the formatted date from mtim.
- * Returns 0 on success, -1 if the parsing failed.
+ * Returns L_OUT_ERR_NONE on success and L_OUT_ERR_PARSE if the parsing failed.
  */
-int parse_mtim_str(char *mtim_str, time_t mtim) {
+l_out_err parse_mtim_str(char *mtim_str, time_t mtim) {
     struct tm *t;
-    int ret = 0;
+    int ret = L_OUT_ERR_NONE;
     
     t = localtime(&mtim);
     errno = 0;
     if (strftime(mtim_str, DATE_STR_LEN, "%b %e %H:%M", t) == 0) {
-        ret = -1;
+        ret = L_OUT_ERR_PARSE;
     }
     
     return ret;
@@ -250,15 +262,16 @@ int parse_mtim_str(char *mtim_str, time_t mtim) {
 /**
  * Parses all members of f_stat to strings who need no special formatting and
  *   puts them in long_out.
- * Returns 0 on success, -1 on error.
+ * Returns L_OUT_ERR_NONE on success and L_OUT_ERR_MALLOC if memory allocation
+ *   failed.
  */
-int parse_misc_st_str(struct long_out_s *long_out, struct stat *f_stat) {
-    int ret = 0;
+l_out_err parse_misc_st_str(struct long_out_s *long_out, struct stat *f_stat) {
+    int ret = L_OUT_ERR_NONE;
 
     errno = 0;
     long_out->ino_str = malloc(get_f_max_strlen(INO_PRINTF));
     if (long_out->ino_str == NULL) {
-        ret = -1;
+        ret = L_OUT_ERR_MALLOC;
     }
     else {
         sprintf(long_out->ino_str, INO_PRINTF, f_stat->st_ino);
@@ -267,7 +280,7 @@ int parse_misc_st_str(struct long_out_s *long_out, struct stat *f_stat) {
         long_out->nlink_str = malloc(get_f_max_strlen(NLINK_PRINTF));
         if (long_out->nlink_str == NULL) {
             free(long_out->ino_str);
-            ret = -1;
+            ret = L_OUT_ERR_MALLOC;
         }
         else {
             sprintf(long_out->nlink_str, NLINK_PRINTF, f_stat->st_nlink);
@@ -277,7 +290,7 @@ int parse_misc_st_str(struct long_out_s *long_out, struct stat *f_stat) {
             if (long_out->size_str == NULL) {
                 free(long_out->ino_str);
                 free(long_out->nlink_str);
-                ret = -1;
+                ret = L_OUT_ERR_MALLOC;
             }
             else {
                 sprintf(long_out->size_str, OFF_PRINTF, f_stat->st_size);
@@ -289,7 +302,7 @@ int parse_misc_st_str(struct long_out_s *long_out, struct stat *f_stat) {
 }
 
 /**
- * Prints the given list of entries in long-format output using each entrie's
+ * Prints the array of entries in dir_long_out to stdout using each entrie's
  *   parsed long_out_s struct and formatting informtion from dir_long_out. If
  *   option_i is true, it will also prepend each entry with its i-node number.
  */
@@ -312,7 +325,8 @@ void dir_long_out_print(struct dir_long_out_s *dir_long_out, bool option_i) {
 }
 
 /**
- * TODO:
+ * Deletes all the long_out entries within dir_long_out and and zeroes/NULLs
+ *   the rest of the entries.
  */
 void dir_long_out_delete(struct dir_long_out_s *dir_long_out) {
     for (int i = 0; i < dir_long_out->entries_c; i++) {
@@ -323,7 +337,7 @@ void dir_long_out_delete(struct dir_long_out_s *dir_long_out) {
 }
 
 /**
- * Frees all elements of long_out
+ * Frees all elements of long_out.
  */
 void long_out_delete(struct long_out_s *long_out) {
     free(long_out->usr_str);
