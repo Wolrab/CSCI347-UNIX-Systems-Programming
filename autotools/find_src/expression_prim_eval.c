@@ -122,6 +122,8 @@ bool eval_type(mode_t mode, char t) {
  * Returns true if the program executed with argv returns 0. Otherwise returns
  *   false. Any element of argv that is equivalent to the string
  *   PRIM_EXEC_PATH_EXPAND is replaced by path.
+ * In the child process, stdin, stdout and stderr are all opened to /dev/null
+ *   to prevent unwanted input and to avoid weird deadlocks.
  * argv_dest is included to make the job of string replacement easier as without
  *   it a new array would have to be allocated every call. argv_dest is made
  *   valid by the writting and is only read by the new process.
