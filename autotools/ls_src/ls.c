@@ -108,9 +108,6 @@ int main(int argc, char **argv) {
         else {
             int j = i;
             while (argv[j] != NULL && err != LS_ERR_MALLOC) {
-                if (argv[j][0] == '-') {
-                    printf("Can't open directory %s, ")
-                }
                 if (j > i) {
                     printf("\n");   
                 }
