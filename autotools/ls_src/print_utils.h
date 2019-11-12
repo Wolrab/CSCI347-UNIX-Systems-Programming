@@ -3,6 +3,18 @@
 #include <string.h>
 #include <limits.h>
 #include <assert.h>
+#include <stdlib.h>
+
+#define MAX_VAL_4BYTES_S 2147483647
+#define MAX_VAL_4BYTES_U 4294967295
+#define MAX_VAL_8BYTES_S 9223372036854775807LL
+#define MAX_VAL_8BYTES_U 18446744073709551615ULL
+
+// Constants for get_f_max_strlen
+extern const int max_strlen_4bytes_s;
+extern const int max_strlen_4bytes_u;
+extern const int max_strlen_8bytes_s;
+extern const int max_strlen_8bytes_u;
 
 // Type formatting defines
 #define INO_PRINTF "%llu"
