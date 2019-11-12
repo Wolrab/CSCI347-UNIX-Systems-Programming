@@ -2,6 +2,7 @@
 #define __EXPRESSION_PRIM_EVAL_H
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 #include "expression_prim_defs.h"
 
 // Evaluates a primary against entry.

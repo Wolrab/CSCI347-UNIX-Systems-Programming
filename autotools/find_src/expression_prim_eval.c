@@ -143,6 +143,12 @@ bool eval_exec(char *path, char **argv, char **argv_dest, int argc) {
 
     pid = fork();
     if (pid == 0) {
+        int fd_in = open("/dev/null", O_RDONLY);
+        int fd_out = open("/dev/null", O_WRONLY);
+        int fd_err = open("/dev/null", O_WRONLY);
+        dup2(fd_in, STDIN_FILENO);
+        dup2(fd_out, STDOUT_FILENO);
+        dup2(fd_err, STDERR_FILENO);
         execvp(argv_dest[0], argv_dest);
         return -1;
     }
