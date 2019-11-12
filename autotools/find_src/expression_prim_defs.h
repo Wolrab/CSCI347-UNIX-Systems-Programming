@@ -1,3 +1,4 @@
+// Universal primary defines
 #ifndef __EXPRESSION_PRIM_DEFS_H
 #define __EXPRESSION_PRIM_DEFS_H
 #include <sys/types.h>
@@ -49,9 +50,11 @@ enum arg_type {
 extern const char *const primary_str_map[];
 extern const arg_type primary_arg_type_map[];
 
-// A container holding an argv and the number of arguments.
+// A container holding argument array argv, a secondary storage array for argv,
+//   and the number of arguments.
 struct argv_s {
     char **argv;
+    char **argv_dest;
     int argc;
 };
 

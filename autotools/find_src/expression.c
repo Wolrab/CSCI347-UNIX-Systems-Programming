@@ -1,5 +1,5 @@
 /**
- * Library for creating and evaluating expressions.
+ * Interface for creating and evaluating expressions.
  * 
  * An expression is made up of primaries connected by operators. A primary
  *   is the smallest unit of an expression, and takes a minimum of two values:
@@ -17,12 +17,10 @@
 
 /**
  * Creates an expression from a list of string arguments. Because each primary
- *   must have both the name of the primary and one or more arguments, 
- *   expression_create_primary moves primary_arg_i to the next arg after the
- *   last arg that was consumed. This is the position of the start of the next
- *   primary.
- * On an error, primary_arg_i is not moved and cleanup of any already
- *   processed elements is done.
+ *   has an unknown number of arguments, expression_create_primary is passed
+ *   a pointer to the current position in expr_argv and moves it to the next
+ *   unparsed position in expr_argv. This is then the position of the next
+ *   primary. expr_argv itself is untouched.
  * If expr_argv contains no arguments, the expression is still valid and will
  *   always return true if evaluated.
  * Returns EXPR_ERR_NONE on success, and any other expr_err value if some
@@ -35,7 +33,7 @@ expr_err expression_create(expression_t *expression, char **expr_argv) {
 
     assert(expression != NULL);
     if (get_prog_state(&(expression->state_args)) < 0) {
-        ret = EXPR_ERR_GLOBALS;
+        ret = EXPR_ERR_STATE;
     }
     else {
         expression->head = NULL;
@@ -63,7 +61,8 @@ expr_err expression_create(expression_t *expression, char **expr_argv) {
 /**
  * Creates and fills a primary node by consuming arguments of primary_arg_i.
  * On success, primary_arg_i points to the next arg after the last consumed
- *   arg.
+ *   arg. This is accomplished by the actual parsing function this function
+ *   calls.
  * Returns EXPR_ERR_NONE on success and any other expr_err on failure
  *   indicating what part of the parsing/allocating process failed.
  */
@@ -87,7 +86,7 @@ expr_err expression_create_primary(primary_node **node, char *primary_str, \
         *node = NULL;
     }
     else if (primary_arg_parse((*node)->primary, &((*node)->arg), \
-            primary_arg_i)<0) {
+            primary_arg_i) < 0) {
         ret = EXPR_ERR_ARG;
         free(*node);
         *node = NULL;

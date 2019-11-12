@@ -30,7 +30,7 @@ struct expression {
 enum expr_err {
     EXPR_ERR_NONE    = 0,
     EXPR_ERR_MALLOC  = 1,
-    EXPR_ERR_GLOBALS = 2,
+    EXPR_ERR_STATE   = 2,
     EXPR_ERR_PRIMARY = 3,
     EXPR_ERR_ARG     = 4,
     EXPR_ERR_NO_ARG  = 5

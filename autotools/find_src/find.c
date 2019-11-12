@@ -113,11 +113,14 @@ find_err descend_tree(FTS *file_tree, expression_t *expression, list *path_list)
             }
             else {
                 list_insert_ordered(path_list, n);
+                errno = 0;
+                entry = fts_read(file_tree);
             }
         }
-        
-        errno = 0;
-        entry = fts_read(file_tree);
+        else {
+            errno = 0;
+            entry = fts_read(file_tree);
+        }
     }
     if (entry == NULL && errno) {
         ret = FIND_ERR_FTS_READ;
@@ -147,7 +150,7 @@ void expression_perror(expr_err err, char *pname) {
     case EXPR_ERR_MALLOC:
         perror(pname);
         break;
-    case EXPR_ERR_GLOBALS:
+    case EXPR_ERR_STATE:
         fprintf(stderr, "%s: could not get required program state info\n", \
             pname);
     case EXPR_ERR_PRIMARY:

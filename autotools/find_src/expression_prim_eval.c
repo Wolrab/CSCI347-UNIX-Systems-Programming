@@ -51,7 +51,7 @@ bool primary_evaluate(primary_t primary, primary_arg *arg,\
     case EXEC:
         assert(primary_arg_type_map[primary] == ARGV_ARG);
         ret = eval_exec(entry->fts_path, arg->argv_arg->argv, \
-            arg->argv_arg->argc);
+            arg->argv_arg->argv_dest, arg->argv_arg->argc);
         break;
     case PRIMARY_NUM:
         abort();
@@ -122,39 +122,34 @@ bool eval_type(mode_t mode, char t) {
  * Returns true if the program executed with argv returns 0. Otherwise returns
  *   false. Any element of argv that is equivalent to the string
  *   PRIM_EXEC_PATH_EXPAND is replaced by path.
+ * argv_dest is included to make the job of string replacement easier as without
+ *   it a new array would have to be allocated every call. argv_dest is made
+ *   valid by the writting and is only read by the new process.
  */
-bool eval_exec(char *path, char **argv, int argc) {
+bool eval_exec(char *path, char **argv, char **argv_dest, int argc) {
     pid_t pid;
     int status;
-    char **argv_cpy;
 
-    errno = 0;
-    argv_cpy = malloc(sizeof(char*) * (argc + 1));
-    if (argv_cpy == NULL) {
-        return false;
-    }
-    else {
-        for(int i = 0; i < argc; i++) {
-            if (strncmp(argv[i], PRIM_EXEC_PATH_EXPAND, \
-                    strlen(PRIM_EXEC_PATH_EXPAND) + 1)==0) {
-                argv_cpy[i] = path;
-            }
-            else {
-                argv_cpy[i] = argv[i];
-            }
+    for(int i = 0; i < argc; i++) {
+        if (strncmp(argv[i], PRIM_EXEC_PATH_EXPAND, \
+                strlen(PRIM_EXEC_PATH_EXPAND) + 1)==0) {
+            argv_dest[i] = path;
         }
-        argv_cpy[argc] = NULL;
+        else {
+            argv_dest[i] = argv[i];
+        }
+    }
+    argv_dest[argc] = NULL;
 
-        pid = fork();
-        if (pid == 0) {
-            execvp(argv_cpy[0], argv_cpy);
-            return -1;
-        }
-        else if (waitpid(pid, &status, 0) == -1) {
-            status = -1;
-        }
-        return status == 0;
+    pid = fork();
+    if (pid == 0) {
+        execvp(argv_dest[0], argv_dest);
+        return -1;
     }
+    else if (waitpid(pid, &status, 0) == -1) {
+        status = -1;
+    }
+    return status == 0;
 }
 
 /**

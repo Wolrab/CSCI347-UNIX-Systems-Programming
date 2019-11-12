@@ -69,18 +69,29 @@ int primary_arg_parse(primary_t primary, primary_arg *arg, char ***argv_i) {
 /**
  * Expected argv value: A string representing a long integer
  * Consumes: 1 arg
- * Returns 0 on success or -1 on error
+ * Returns 0 on success and -1 if argv_i could not fully be converted to an
+ *   integer.
  */
 int get_arg_long(primary_arg *arg, char ***argv_i) {
-    arg->long_arg = strtol((*argv_i)[0], NULL, 10);
-    incr_argv_i(argv_i, 1);
+    char *end_ptr;
+    long val;
+    int ret = 0;
+
+    val = strtol((*argv_i)[0], &end_ptr, 10);
+    if (end_ptr != NULL) {
+        ret = -1;
+    }
+    else {
+        arg->long_arg = val;
+        incr_argv_i(argv_i, 1);
+    }
     return 0;
 }
 
 /**
  * Expected argv value: A single character
  * Consumes: 1 arg
- * Returns 0 on success or -1 on error
+ * Returns 0 on success or -1 if the argument is more than one character.
  */
 int get_arg_char(primary_arg *arg, char ***argv_i) {
     int ret = 0;
@@ -131,38 +142,45 @@ int get_arg_ctim(primary_arg *arg, char ***argv_i) {
  */
 int get_arg_argv(primary_arg *arg, char ***argv_i) {
     int ret = 0;
-    struct argv_s *argv;
+    struct argv_s *argv_s;
 
-    errno = 0;
-    argv = malloc(sizeof(struct argv_s));
-    if (argv == NULL) {
+    int argc = 0;
+    while ((*argv_i)[argc] != NULL && strncmp(PRIM_EXEC_ARGV_END, \
+            (*argv_i)[argc], strlen(PRIM_EXEC_ARGV_END) + 1)) {
+        argc++;
+    }
+    if (argc == 0 || (*argv_i)[argc] == NULL) {
         ret = -1;
     }
     else {
-        int i = 0;
-        while ((*argv_i)[i] != NULL && strncmp(PRIM_EXEC_ARGV_END, \
-                (*argv_i)[i], strlen(PRIM_EXEC_ARGV_END) + 1)) {
-            i++;
-        }
-
-        if ((*argv_i)[i] == NULL) {
-            free(argv);
+        errno = 0;
+        argv_s = malloc(sizeof(struct argv_s));
+        if (argv_s == NULL) {
             ret = -1;
         }
         else {
-            argv->argc = i;
-
             errno = 0;
-            argv->argv = malloc(sizeof(char*) * (i + 1));
-            if (argv->argv == NULL) {
-                free(argv);
+            argv_s->argv = malloc(sizeof(void*) * (argc + 1));
+            if (argv_s->argv == NULL) {
+                free(argv_s);
                 ret = -1;
             }
             else {
-                memcpy(argv->argv, *argv_i, i * sizeof(char*));
-                argv->argv[i] = NULL;
-                arg->argv_arg = argv;
-                incr_argv_i(argv_i, i + 1);
+                errno = 0;
+                argv_s->argv_dest = malloc(sizeof(void*) * (argc + 1));
+                if (argv_s->argv_dest == NULL) {
+                    free(argv_s->argv);
+                    free(argv_s);
+                }
+                else {
+                    memcpy(argv_s->argv, *argv_i, argc * sizeof(void*));
+                    memset(argv_s->argv_dest, '\0', argc * sizeof(void*));
+                    argv_s->argv[argc] = NULL;
+                    argv_s->argc = argc;
+
+                    arg->argv_arg = argv_s;
+                    incr_argv_i(argv_i, argc + 1);
+                }
             }
         }
     }

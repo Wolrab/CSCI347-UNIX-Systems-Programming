@@ -4,17 +4,9 @@ find TODO:
     Refactor: Done (pass 1)
     Documentation: Done (pass 1)
     Basic build/basic testing: Done
-
-ls TODO:
-    Refactor: Done (sleep deprived)
-    Documentation: Done (sleep deprived)
-    Basic build/basic testing: Done
-
-
-Test Cases...
-
+ls done. Go through again if feeling neurotic.
+Test Cases: Done!
 Build/Live Test...
-
 
 BEFORE SUBMIT
 CTRL+SHIFT+F "TODO:"

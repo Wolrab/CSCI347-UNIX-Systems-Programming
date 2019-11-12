@@ -15,7 +15,7 @@ bool eval_ctime(struct timespec *ctim, long n, time_t start_time_day);
 bool eval_mmin(struct timespec *mtim, long n, time_t start_time_min);
 bool eval_mtime(struct timespec *mtim, long n, time_t start_time_day);
 bool eval_type(mode_t mode, char t);
-bool eval_exec(char *path, char **argv, int argc);
+bool eval_exec(char *path, char **argv, char **argv_dest, int argc);
 
 // Helper for primary evaluator functions
 char get_type_char(mode_t mode);
