@@ -33,10 +33,11 @@ enum ls_err {
     LS_ERR_MALLOC = 1,
     LS_ERR_DIR_STREAM_OPEN = 2,
     LS_ERR_DIR_STREAM_READ = 3,
-    LS_ERR_STAT = 4,
-    LS_ERR_PATH_OVERFLOW = 5,
-    LS_ERR_LONG_PARSE = 6,
-    LS_ERR_IOCTL_TTY = 7
+    LS_ERR_FILE_DNE = 4,
+    LS_ERR_STAT = 5,
+    LS_ERR_PATH_OVERFLOW = 6,
+    LS_ERR_LONG_PARSE = 7,
+    LS_ERR_IOCTL_TTY = 8
 };
 
 // List all the directory entries of path. Outputs the result to standard out.
@@ -196,7 +197,9 @@ ls_err get_entries(const char *path, list *dir_entries) {
 
 /** 
  * Adds a new node containing f_name into dir_entries. If option_l or option_i
- *   are true, it also stores the file's stat struct in dir_entries as well.
+ *   are true, it also stores the file's stat struct in dir_entries as well. If
+ *   option_d is true, then it also calls get_f_stat to test if the corresonding
+ *   f_name exists.
  * Returns LS_ERR_NONE on success, and on error an ls_err value corresponding
  *   to the type of error.
  */
@@ -205,8 +208,12 @@ ls_err add_entry(char *f_name, const char *path, list *dir_entries) {
     struct stat *f_stat = NULL;
     ls_err ret = LS_ERR_NONE;
 
-    if (option_l || option_i) {
+    if (option_l || option_i || option_d) {
         ret = get_f_stat(f_name, path, &f_stat);
+    }
+
+    if (ret == LS_ERR_STAT && option_d) {
+        ret = LS_ERR_FILE_DNE;
     }
 
     if (ret == LS_ERR_NONE) {
@@ -471,6 +478,7 @@ void ls_perror(ls_err err, char *pname) {
         ": memory allocation error",
         ": error opening a directory stream",
         ": error reading a directory stream",
+        ": file does not exist",
         ": error getting file statistics",
         ": error converting path: overflow detected",
         ": error parsing long-format output"
