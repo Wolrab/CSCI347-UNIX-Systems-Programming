@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
             while (argv[j] != NULL && argv[j][0] != '-' \
                     && err != LS_ERR_MALLOC) {
                 if (j > i) {
-                    printf("\n");
+                    printf("\n");   
                 }
                 if (!option_d) {
                     printf("%s:\n", argv[j]);
