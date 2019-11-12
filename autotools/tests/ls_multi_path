@@ -22,7 +22,7 @@ echo >> ${TEMP}/d
 echo >> ${TEMP}/d
 
 # Ensuring -d works with multi path
-./ls ${TEMP}/A ${TEMP}/B ${TEMP}/C -d >> ${TEMP}/d
+./ls -d ${TEMP}/A ${TEMP}/B ${TEMP}/C >> ${TEMP}/d
 
 cat <<EOF | diff ${TEMP}/d -
 a

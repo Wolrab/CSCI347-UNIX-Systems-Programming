@@ -8,7 +8,7 @@ touch ${TEMP}/A
 
 ./ls ${TEMP} > ${TEMP}/A
 echo >> ${TEMP}/A
-./ls ${TEMP} -d >> ${TEMP}/A
+./ls -d ${TEMP} >> ${TEMP}/A
 
 cat <<EOF | diff ${TEMP}/A -
 A
