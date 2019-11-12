@@ -129,7 +129,8 @@ int main(int argc, char **argv) {
 }
 
 /**
- * Prints the entries of the directory specified by path to stdout.
+ * Prints the entries of the directory specified by path to stdout. If option_d
+ *   is specified, path is treated as a file instead.
  * Returns LS_ERR_NONE on success, and on error an ls_err value corresponding
  *   to the type of error.
  */
