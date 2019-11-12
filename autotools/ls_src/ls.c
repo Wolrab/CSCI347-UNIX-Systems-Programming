@@ -373,10 +373,10 @@ char** get_tty_out(list *dir_entries) {
                     err = -1;
                 }
                 else {
-                    sprintf(tty_out[i] + strlen(curr->data.f_name), \
-                        INO_PRINTF" ", curr->data.f_stat->st_ino);
-                    strncpy(tty_out[i], curr->data.f_name, \
-                        strlen(curr->data.f_name) + 1);
+                    sprintf(tty_out[i], INO_PRINTF" ", \
+                        curr->data.f_stat->st_ino);
+                    strncpy(tty_out[i] + strlen(tty_out[i]), \
+                        curr->data.f_name, strlen(curr->data.f_name) + 1);
                 }
             }
             else {
