@@ -10,8 +10,8 @@ touch A
 touch B
 
 ${WORK}/ls -i > A
-stat --printf=%i\ %n\\n A > B
-stat --printf=%i\ %n\\n B >> B
+stat -f "%i %N%n" A > B
+stat -f "%i %N%n" B >> B
 
 diff A B
 status=$?
