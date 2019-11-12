@@ -478,7 +478,7 @@ void ls_perror(ls_err err, char *pname) {
         ": memory allocation error",
         ": error opening a directory stream",
         ": error reading a directory stream",
-        ": file does not exist",
+        ": error opening file",
         ": error getting file statistics",
         ": error converting path: overflow detected",
         ": error parsing long-format output"
