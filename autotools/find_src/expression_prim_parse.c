@@ -78,14 +78,14 @@ int get_arg_long(primary_arg *arg, char ***argv_i) {
     int ret = 0;
 
     val = strtol((*argv_i)[0], &end_ptr, 10);
-    if (end_ptr != NULL) {
+    if (*end_ptr != '\0') {
         ret = -1;
     }
     else {
         arg->long_arg = val;
         incr_argv_i(argv_i, 1);
     }
-    return 0;
+    return ret;
 }
 
 /**
