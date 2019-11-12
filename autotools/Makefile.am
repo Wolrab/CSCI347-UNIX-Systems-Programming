@@ -6,17 +6,17 @@ find_SOURCES=find_src/find.c find_src/expression.c find_src/expression.h \
              find_src/expression_prim_eval.c find_src/expression_prim_eval.h \
 			 find_src/expression_prim_defs.h find_src/list.c find_src/list.h
 
-test_scripts=tests/find_cnewer \
-             tests/find_exec   \
-             tests/find_exists \
-             tests/find_type   \
-             tests/ls_exists   \
-             tests/ls_multipath\
-             tests/ls_option_a \
-             tests/ls_option_d \
-             tests/ls_option_i \
-             tests/ls_option_l \
-             tests/ls_order    \
+test_scripts=tests/find_cnewer   \
+             tests/find_exec     \
+             tests/find_exists   \
+             tests/find_type     \
+             tests/ls_exists     \
+             tests/ls_multi_path \
+             tests/ls_option_a   \
+             tests/ls_option_d   \
+             tests/ls_option_i   \
+             tests/ls_option_l   \
+             tests/ls_order      \
              tests/ls_order_case
 
 EXTRA_DIST=${test_scripts}

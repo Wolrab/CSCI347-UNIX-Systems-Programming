@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-#
+# Checks that ls works with multiple paths
 
 TEMP=$(mktemp -d)
 WORK=$(pwd)
@@ -24,8 +24,8 @@ echo >> ${TEMP}/d
 # Ensuring -d works with multi path
 ./ls ${TEMP}/A ${TEMP}/B ${TEMP}/C -d >> ${TEMP}/d
 
-cat <<EOF | diff ${TEMP}/A -
-A
+cat <<EOF | diff ${TEMP}/d -
+a
 
 ${TEMP}/A:
 a
@@ -46,7 +46,9 @@ ${TEMP}/A:
 a
 
 ${TEMP}/A
+
 ${TEMP}/B
+
 ${TEMP}/C
 EOF
 status=$?

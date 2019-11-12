@@ -6,7 +6,7 @@ WORK=$(pwd)
 
 mkdir ${TEMP}/A
 touch ${TEMP}/B
-ln -s ${TEMP}/A C
+ln -s ${TEMP}/A ${TEMP}/C
 
 cd ${TEMP}
 ${WORK}/find . -type d > B
