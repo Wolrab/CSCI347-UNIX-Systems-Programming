@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+# Ensures that -type works with the basic file types.
+
+TEMP=$(mktemp -d)
+WORK=$(pwd)
+
+mkdir ${TEMP}/A
+touch ${TEMP}/B
+ln -s ${TEMP}/A ${TEMP}/C
+
+cd ${TEMP}
+${WORK}/find . -type d > B
+echo >> B
+${WORK}/find . -type f >> B
+echo >> B
+${WORK}/find . -type l >> B
+
+cat <<EOF | diff B -
+.
+./A
+
+./B
+
+./C
+EOF
+status=$?
+
+cd ${WORK}
+rm -rf ${TEMP}
+
+exit ${status}

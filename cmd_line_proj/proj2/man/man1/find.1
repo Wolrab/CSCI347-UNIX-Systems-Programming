@@ -1,0 +1,167 @@
+.\"	$NetBSD: find.1,v 1.66 2007/07/19 07:49:30 daniel Exp $
+.\"
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)find.1	8.7 (Berkeley) 5/9/95
+.\"
+.\" Modified for Western Washington University CSCI 347
+.Dd July 19, 2007
+.Dt FIND 1
+.Os
+.Sh NAME
+.Nm find
+.Nd walk a file hierarchy
+.Sh SYNOPSIS
+.Nm
+.Ar file
+.Op Ar expression
+.Sh DESCRIPTION
+.Nm
+recursively descends the directory tree for the
+.Ar file
+listed, evaluating an
+.Ar expression
+(composed of the
+.Dq primaries
+and
+.Dq operands
+listed below) in terms
+of each file in the tree.
+.Sh PRIMARIES
+.Bl -tag -width Ds
+.It Ic -cmin Ar n
+True if the difference between the time of last change of file status
+information and the time
+.Nm
+was started, rounded up to the next full minute, is
+.Ar n
+minutes.
+.It Ic -cnewer Ar file
+True if the current file has a more recent last change time than
+.Ar file  .
+.It Ic -ctime Ar n
+True if the difference between the time of last change of file status
+information and the time
+.Nm
+was started, rounded up to the next full 24-hour period, is
+.Ar n
+24-hour periods.
+.It Ic -mmin Ar n
+True if the difference between the file last modification time and the time
+.Nm
+was started, rounded up to the next full minute, is
+.Ar n
+minutes.
+.It Ic -mtime Ar n
+True if the difference between the file last modification time and the time
+.Nm
+was started, rounded up to the next full 24-hour period, is
+.Ar n
+24-hour periods.
+.It Ic -type Ar t
+True if the file is of the specified type.
+Possible file types are as follows:
+.Pp
+.Bl -tag -width flag -offset indent -compact
+.It Cm b
+block special
+.It Cm c
+character special
+.It Cm d
+directory
+.It Cm f
+regular file
+.It Cm l
+symbolic link
+.It Cm p
+FIFO
+.It Cm s
+socket
+.El
+.Pp
+.Sh OPERATORS
+There are not operators at this time.  But plan for parenthesized expressions,
+negation, logical and, and logical or.
+.Sh EXIT STATUS
+The
+.Nm
+utility normally exits 0 on success, and exits with 1 under certain
+internal error conditions.
+.Sh EXAMPLES
+The following examples are shown as given to the shell:
+.Bl -tag -width findx
+.It Li "find  /  -type d"
+Print out a list of all the directories starting with /.
+.It Li "find  /  -type d -ctime 1"
+Print out a list of all the directories starting with / that were changed
+today.  
+.Sh SEE ALSO
+.Xr stat 2 ,
+.Xr fts 3 ,
+.Xr clock_gettime 2 ,
+.Sh STANDARDS
+The
+.Nm
+utility syntax is a superset of the syntax specified by the
+.St -p1003.2
+standard.
+.Pp
+The options and the
+.Ic -cmin ,
+.Ic -cnewer ,
+and
+.Ic -mmin 
+primaries are extensions to
+.St -p1003.2 .
+.Pp
+.Sh HISTORY
+A much simpler
+.Nm find
+command appeared in First Edition AT\*[Am]T Unix.
+The syntax had become similar to the present version by
+the time of the Fifth Edition.
+.Sh BUGS
+The special characters used by
+.Nm
+are also special characters to many shell programs.
+In particular, the characters
+.Dq \&* ,
+.Dq \&[ ,
+.Dq \&] ,
+.Dq \&? ,
+.Dq \&( ,
+.Dq \&) ,
+.Dq \&! ,
+.Dq \e ,
+and
+.Dq \&;
+may have to be escaped from the shell.
+.Pp
