@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+# Checks -cnewer by delaying one files status change using chmod and sleep
+
+TEMP=$(mktemp -d)
+WORK=$(pwd)
+
+touch ${TEMP}/A
+touch ${TEMP}/B
+chmod 755 ${TEMP}/B
+sleep 1
+chmod 755 ${TEMP}/A
+chmod 755 ${TEMP}
+
+cd ${TEMP}
+${WORK}/find . -cnewer B > A
+
+cat <<EOF | diff A -
+.
+./A
+EOF
+status=$?
+
+cd ${WORK}
+rm -rf ${TEMP}
+
+exit ${status}

@@ -1,0 +1,9 @@
+if [ -f /bin/.ls ]
+then
+  alias ls=.ls
+fi
+
+if [ CC=clang ]
+then
+  CFLAGS=-O2
+fi
